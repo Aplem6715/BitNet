@@ -24,6 +24,26 @@ namespace util
 		}
 	}
 
+	void MakePopBatch(int batchSize, double tScale, int8_t *inputData, int8_t *teacherData)
+	{
+		constexpr int INPUT_SIZE = 8;
+		for (int b = 0; b < batchSize; b++)
+		{
+			int batchShift = b * INPUT_SIZE;
+			int8_t t = 0;
+			for (int i = 0; i < INPUT_SIZE; i++)
+			{
+				inputData[batchShift + i] = ((Random::GetUInt() % 2) == 1) ? 1 : -1;
+				if (inputData[batchShift + i] > 0)
+				{
+					t ^= 1;
+				}
+			}
+
+			// teacherData[b] = t / (double)INPUT_SIZE * tScale*2 - tScale;
+			teacherData[b] = t * (double)tScale - tScale/2;
+		}
+	}
 	/**
 	 * @brief 勾配と2乗平均誤差を計算する
 	 * 
