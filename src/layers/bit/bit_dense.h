@@ -59,6 +59,34 @@ private:
 #pragma endregion
 
 public:
+	const double *Forward(const BitBlock *netInput)
+	{
+		// TODO
+		return _outputBuffer;
+	}
+
+	void ClearWeight()
+	{
+		// TODO
+	}
+
+	void ResetWeight()
+	{
+		// TODO
+		_prevLayer.ResetWeight();
+	}
+
+#pragma region Train
+	double *TrainForward(const BitBlock* netInput){
+		// TODO
+		return _outputBatchBuffer;
+	}
+	
+	void TrainBackward(const GradientType *nextGrad){
+		// TODO
+	}
+
+#pragma endregion
 };
 
 #endif
