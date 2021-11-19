@@ -9,7 +9,7 @@
  * @tparam PreviousLayer_t 前のレイヤー型
  * @tparam OutputBits 入力数
  */
-template <typename PreviousLayer_t, int InputBits>
+template <int InputBits>
 class IntInputLayer
 {
 public:
@@ -30,8 +30,12 @@ public:
 		return _outputBuffer;
 	}
 
+	void ResetWeight()
+	{
+	}
+	
 #pragma region Train
-	const IntBitType *TrainForward(const int8_t *netInput)
+	IntBitType *TrainForward(const int8_t *netInput)
 	{
 		// バッファに入力を詰める
 		for (int b = 0; b < BATCH_SIZE; b++)

@@ -3,7 +3,7 @@
 
 #include <cstdint>
 
-constexpr int BATCH_SIZE = 32;
+constexpr int BATCH_SIZE = 1;
 
 typedef double GradientType;
 typedef double BiasType;
@@ -16,6 +16,5 @@ typedef double RealType;
 typedef int IntType;
 typedef uint8_t BitType;
 typedef int8_t IntBitType;
-
 
 #endif
