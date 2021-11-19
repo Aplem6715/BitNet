@@ -3,7 +3,7 @@
 
 #include <cstdint>
 
-constexpr int BATCH_SIZE = 1;
+constexpr int BATCH_SIZE = 16;
 
 typedef double GradientType;
 typedef double BiasType;

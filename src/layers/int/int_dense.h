@@ -48,7 +48,7 @@ private:
 	// 前の層に伝播する勾配
 	double _gradsToPrev[BATCH_SIZE * COMPRESS_IN_DIM];
 	// 勾配法用の実数値重み
-	double _realWeight[COMPRESS_OUT_DIM][COMPRESS_IN_DIM];
+	double _realWeight[COMPRESS_OUT_DIM][COMPRESS_IN_DIM] = {0};
 	// バッチ学習版出力バッファ（学習時はこちらのバッファを使用する
 	double _outputBatchBuffer[BATCH_SIZE * COMPRESS_OUT_DIM];
 	// 勾配計算用の入力バッファ（実態は前の層の出力バッファを参照するポインタ
@@ -74,7 +74,7 @@ public:
 			for (int i_in = 0; i_in < COMPRESS_IN_DIM; i_in++)
 			{
 				double rand = Random::GetReal01() * 2 - 1;
-				_realWeight[i_out][i_in] = rand;
+				// _realWeight[i_out][i_in] = rand;
 				_weight[i_out][i_in] = rand > 0 ? 1 : -1;
 			}
 		}

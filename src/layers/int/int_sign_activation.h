@@ -23,7 +23,7 @@ private:
 	// 前の層
 	PreviousLayer_t _prevLayer;
 	// 前の層に伝播する勾配
-	double _gradsToPrev[COMPRESS_IN_DIM];
+	double _gradsToPrev[BATCH_SIZE * COMPRESS_IN_DIM];
 	// 出力バッファ（次の層が参照する
 	IntBitType _outputBuffer[COMPRESS_OUT_DIM];
 	IntBitType _outputBatchBuffer[BATCH_SIZE * COMPRESS_OUT_DIM];
@@ -76,11 +76,11 @@ public:
 				// d_Hard-tanh
 				if (std::abs(_inputBatchBuffer[batchShiftOut + i]) <= 1)
 				{
-					_gradsToPrev[i] = g;
+					_gradsToPrev[batchShiftOut + i] = g;
 				}
 				else
 				{
-					_gradsToPrev[i] = 0;
+					_gradsToPrev[batchShiftOut + i] = 0;
 				}
 			}
 		}

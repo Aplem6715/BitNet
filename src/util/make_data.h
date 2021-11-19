@@ -12,14 +12,14 @@ namespace util
 		for (int b = 0; b < batchSize; b++)
 		{
 			int batchShift = b * INPUT_SIZE;
-			int8_t x1 = Random::GetReal01() > 0.5;
-			int8_t x2 = Random::GetReal01() > 0.5;
+			int8_t x1 = Random::GetUInt() % 2;
+			int8_t x2 = Random::GetUInt() % 2;
 			int8_t t = x1 ^ x2;
 
 			inputData[batchShift + 0] = (x1 == 0) ? -1 : 1;
 			inputData[batchShift + 1] = (x2 == 0) ? -1 : 1;
 
-			t = (t == 0) ? -1 : 1;
+			t = (t == 0) ? 1 : -1;
 			teacherData[b] = t * tScale;
 		}
 	}
@@ -44,14 +44,15 @@ namespace util
 			int batchShift = b * predSize;
 			for (int i = 0; i < predSize; i++)
 			{
-				double t = teacherData[batchShift + i];
-				double y = predData[batchShift + i];
-				double diff = lr * (t - y) / tScale;
-				diffOuts[batchShift + i] = diff;
+				int idx = batchShift + i;
+				double y = predData[idx];
+				double t = teacherData[idx];
+				double diff = lr * (t - y);
+				diffOuts[idx] = diff;
 
-				double ae = std::abs(y - t) / tScale;
+				double ae = std::abs(y - t);
 				totalAE += ae;
-				totalLoss += ae * ae;
+				totalLoss += ae * ae / tScale;
 			}
 		}
 
