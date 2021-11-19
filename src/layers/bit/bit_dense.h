@@ -80,7 +80,8 @@ public:
 	}
 
 #pragma region Train
-	double *TrainForward(const BitBlock* netInput){
+	double *TrainForward(const BitBlock *netInput)
+	{
 		_inputBatchBuffer = _prevLayer.TrainForward(netInput);
 
 		for (int b = 0; b < BATCH_SIZE; b++)
@@ -105,8 +106,9 @@ public:
 
 		return _outputBatchBuffer;
 	}
-	
-	void TrainBackward(const GradientType *nextGrad){
+
+	void TrainBackward(const GradientType *nextGrad)
+	{
 		// 勾配更新
 		for (int b = 0; b < BATCH_SIZE; b++)
 		{
@@ -128,7 +130,40 @@ public:
 			}
 		}
 
-		// TODO
+		for (int b = 0; b < BATCH_SIZE; b++)
+		{
+			int batchShiftIn = b * COMPRESS_IN_DIM;
+			int batchShiftOut = b * COMPRESS_OUT_DIM;
+			// 重み調整
+			for (int i_out = 0; i_out < COMPRESS_OUT_DIM; i_out++)
+			{
+				_bias[i_out] += nextGrad[batchShiftOut + i_out];
+				for (int i_in = 0; i_in < COMPRESS_IN_DIM; i_in++)
+				{
+					_realWeight[i_out][i_in] += nextGrad[batchShiftOut + i_out] * _inputBatchBuffer[batchShiftIn + i_in];
+				}
+			}
+		}
+
+		// 2値化
+		for (int i_out = 0; i_out < COMPRESS_OUT_DIM; i_out++)
+		{
+			for (int i_in = 0; i_in < COMPRESS_IN_DIM; i_in++)
+			{
+				int blockIdx = GetBlockIndex(i_in);
+				int bitShift = GetBitIndexInBlock(i_in);
+				// Clipping
+				double tmp_w = std::max(-1.0, std::min(1.0, _realWeight[i_out][i_in]));
+				_realWeight[i_out][i_in] = tmp_w;
+
+				BitBlock block = _weight[i_out][blockIdx];
+				BitBlock mask = ~(1 << bitShift);
+				BitBlock newBit = (tmp_w > 0) << bitShift;
+				_weight[i_out][blockIdx] = (block & mask) | newBit;
+			}
+		}
+		
+		_prevLayer.TrainBackward(_gradsToPrev);
 	}
 
 #pragma endregion
