@@ -41,7 +41,7 @@ int main(){
 	net.ResetWeight();
 
 	Random::Seed(42);
-	for (int i = 0; i < 150; i++)
+	for (int i = 0; i < 100; i++)
 	{
 		TrainInt(net, 10);
 	}

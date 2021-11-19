@@ -74,7 +74,7 @@ public:
 			for (int i_in = 0; i_in < COMPRESS_IN_DIM; i_in++)
 			{
 				double rand = Random::GetReal01() * 2 - 1;
-				// _realWeight[i_out][i_in] = rand;
+				_realWeight[i_out][i_in] = rand;
 				_weight[i_out][i_in] = rand > 0 ? 1 : -1;
 			}
 		}
