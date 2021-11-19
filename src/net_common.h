@@ -30,4 +30,14 @@ constexpr int BitToBlockCount(int bitSize)
 	return std::ceil(bitSize / (float)BYTE_BIT_WIDTH);
 }
 
+inline int GetBlockIndex(int bitIndex)
+{
+	return bitIndex / BYTE_BIT_WIDTH;
+}
+
+inline int GetBitIndexInBlock(int bitIndex)
+{
+	return BYTE_BIT_WIDTH - (bitIndex % BYTE_BIT_WIDTH) - 1;
+}
+
 #endif

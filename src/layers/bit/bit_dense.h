@@ -18,6 +18,7 @@
 
 #include "../../util/random_util.h"
 #include "../../net_common.h"
+#include <intrin.h>
 
 /**
  * @brief ビット演算全結合層。bitBlock入力double出力
@@ -36,12 +37,14 @@ public:
 
 	// 出力次元（ニューロン）の数
 	static constexpr int COMPRESS_OUT_DIM = OutputBits;
+	// 入力側と表記を統一するための変数。COMPRESS_OUT_DIMと値は同じ
+	static constexpr int PADDED_OUT_BLOCKS = COMPRESS_OUT_DIM;
 
 private:
 	// 前の層
 	PreviousLayer_t _prevLayer;
 	// 出力バッファ（次の層が参照する
-	double _outputBuffer[COMPRESS_OUT_DIM];
+	double _outputBuffer[COMPRESS_OUT_DIM] = {0};
 	// 2値重み(-1 or 1)
 	BitWeight _weight[COMPRESS_OUT_DIM][PADDED_IN_BLOCKS];
 	// バイアス
@@ -53,7 +56,7 @@ private:
 	// 勾配法用の実数値重み
 	double _realWeight[COMPRESS_OUT_DIM][COMPRESS_IN_DIM] = {0};
 	// バッチ学習版出力バッファ（学習時はこちらのバッファを使用する
-	double _outputBatchBuffer[BATCH_SIZE * COMPRESS_OUT_DIM];
+	double _outputBatchBuffer[BATCH_SIZE * COMPRESS_OUT_DIM] = {0};
 	// 勾配計算用の入力バッファ（実態は前の層の出力バッファを参照するポインタ
 	BitBlock *_inputBatchBuffer;
 #pragma endregion
@@ -78,11 +81,53 @@ public:
 
 #pragma region Train
 	double *TrainForward(const BitBlock* netInput){
-		// TODO
+		_inputBatchBuffer = _prevLayer.TrainForward(netInput);
+
+		for (int b = 0; b < BATCH_SIZE; b++)
+		{
+			int batchShiftIn = b * PADDED_IN_BLOCKS;
+			int batchShiftOut = b * PADDED_OUT_BLOCKS;
+			for (int i_out = 0; i_out < COMPRESS_OUT_DIM; i_out++)
+			{
+				// パディング分も含めて±1積和演算
+				int pop = 0;
+				for (int block = 0; block < PADDED_IN_BLOCKS; block++)
+				{
+					const BitBlock xnor = ~(_inputBatchBuffer[batchShiftIn + block] ^ _weight[i_out][block]);
+					pop += __popcnt64(xnor);
+				}
+
+				// 1,-1の合計値に（[plus] - (bitWidth - [minus]) => 2x[1の数] - bitWidth)
+				double sum = 2 * pop - COMPRESS_IN_DIM;
+				_outputBatchBuffer[batchShiftOut + i_out] = sum + _bias[i_out];
+			}
+		}
+
 		return _outputBatchBuffer;
 	}
 	
 	void TrainBackward(const GradientType *nextGrad){
+		// 勾配更新
+		for (int b = 0; b < BATCH_SIZE; b++)
+		{
+			int batchShiftIn = b * COMPRESS_IN_DIM;
+			int batchShiftOut = b * COMPRESS_OUT_DIM;
+			for (int i_in = 0; i_in < COMPRESS_IN_DIM; i_in++)
+			{
+				int blockIdx = GetBlockIndex(i_in);
+				int bitShift = GetBitIndexInBlock(i_in);
+				double sum = 0;
+				for (int i_out = 0; i_out < COMPRESS_OUT_DIM; i_out++)
+				{
+					const BitBlock bits = _weight[i_out][blockIdx];
+					const bool w_bit = (bits >> bitShift) & 0b1;
+					const int weight = (w_bit ? 1 : -1);
+					sum += nextGrad[batchShiftOut + i_out] * weight;
+				}
+				_gradsToPrev[batchShiftIn + i_in] = sum;
+			}
+		}
+
 		// TODO
 	}
 
