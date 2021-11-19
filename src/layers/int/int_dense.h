@@ -16,6 +16,7 @@
 #ifndef INT_DENSE_H_INCLUDED_
 #define INT_DENSE_H_INCLUDED_
 
+#include "../../util/random_util.h"
 #include "../../net_common.h"
 
 /**
@@ -49,7 +50,7 @@ private:
 	// 勾配法用の実数値重み
 	double _realWeight[COMPRESS_OUT_DIM][COMPRESS_IN_DIM];
 	// バッチ学習版出力バッファ（学習時はこちらのバッファを使用する
-	int _outputBatchBuffer[BATCH_SIZE][COMPRESS_OUT_DIM];
+	int _outputBatchBuffer[BATCH_SIZE * COMPRESS_OUT_DIM];
 	// 勾配計算用の入力バッファ（実態は前の層の出力バッファを参照するポインタ
 	IntBitType *_inputBatchBuffer;
 #pragma endregion
@@ -72,7 +73,7 @@ public:
 			_bias[i_out] = 0;
 			for (int i_in = 0; i_in < COMPRESS_IN_DIM; i_in++)
 			{
-				double rand = GetRandReal() * 2 - 1;
+				double rand = Random::GetReal01() * 2 - 1;
 				_realWeight[i_out][i_in] = rand;
 				_weight[i_out][i_in] = rand > 0 ? 1 : -1;
 			}
@@ -118,7 +119,7 @@ public:
 				{
 					sum += nextGrad[batchShiftOut + i_out] * _weight[i_out][i_in];
 				}
-				_grads[batchShiftIn + i_in] = sum;
+				_gradsToPrev[batchShiftIn + i_in] = sum;
 			}
 		}
 
@@ -129,7 +130,7 @@ public:
 			// 重み調整
 			for (int i_out = 0; i_out < COMPRESS_OUT_DIM; i_out++)
 			{
-				_bias[i_out] += nextLayerGrads[batchShiftOut + i_out];
+				_bias[i_out] += nextGrad[batchShiftOut + i_out];
 				for (int i_in = 0; i_in < COMPRESS_IN_DIM; i_in++)
 				{
 					_realWeight[i_out][i_in] += nextGrad[batchShiftOut + i_out] * _inputBatchBuffer[batchShiftIn + i_in];

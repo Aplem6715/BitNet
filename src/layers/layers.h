@@ -3,4 +3,7 @@
 
 #include "bit/bit_dense.h"
 
+#include "int/int_input.h"
+#include "int/int_dense.h"
+
 #endif
