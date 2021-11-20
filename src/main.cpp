@@ -12,6 +12,14 @@ namespace int_net
 	using Network = Output;
 }
 
+namespace bit_net{
+	using Input = BitInputLayer<2>;
+	using Hidden1 = BitSignActivation<BitDenseLayer<Input, 32>>;
+	using Hidden2 = BitSignActivation<BitDenseLayer<Hidden1, 16>>;
+	using Output = BitDenseLayer<Hidden2, 1>;
+	using Network = Output;
+}
+
 void TrainInt(int_net::Network &net, int nbTrain)
 {
 	int8_t inputData[BATCH_SIZE * 8];

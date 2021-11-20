@@ -3,6 +3,7 @@
 
 #include "bit/bit_input.h"
 #include "bit/bit_dense.h"
+#include "bit/bit_sign_activation.h"
 
 #include "int/int_input.h"
 #include "int/int_dense.h"
