@@ -16,106 +16,110 @@
 
 #include "../../net_common.h"
 #include "../../util/random_util.h"
+#include "../../util/bit_helper.h"
 #include <algorithm>
 
-/**
- * @brief Int型符号アクティベーション層
- * 
- * @tparam PreviousLayer_t 前のレイヤー型
- */
-template <typename PreviousLayer_t>
-class BitSignActivation
+namespace bitnet
 {
-public:
-	// 出力次元数
-	static constexpr int COMPRESS_OUT_DIM = PreviousLayer_t::COMPRESS_OUT_DIM;
-	static constexpr int COMPRESS_OUT_BITS = COMPRESS_OUT_DIM;
-	static constexpr int COMPRESS_OUT_BLOCKS = BitToBlockCount(COMPRESS_OUT_DIM);
-	static constexpr int PADDED_OUT_BITS = AddPaddingToBitSize(COMPRESS_OUT_BITS);
-	static constexpr int PADDED_OUT_BLOCKS = BitToBlockCount(PADDED_OUT_BITS);
-	// 入力次元数
-	static constexpr int COMPRESS_IN_DIM = COMPRESS_OUT_DIM;
-
-private:
-	// 前の層
-	PreviousLayer_t _prevLayer;
-	// 前の層に伝播する勾配
-	double _gradsToPrev[BATCH_SIZE * COMPRESS_IN_DIM] = {0};
-	// 出力バッファ（次の層が参照する
-	BitBlock _outputBuffer[PADDED_OUT_BLOCKS] = {0};
-	BitBlock _outputBatchBuffer[BATCH_SIZE * PADDED_OUT_BLOCKS] = {0};
-	double *_inputBatchBuffer; // TODO: int化？
-
-public:
-	const BitBlock *Forward(const int8_t *netInput)
+	/**
+	 * @brief Int型符号アクティベーション層
+	 * 
+	 * @tparam PreviousLayer_t 前のレイヤー型
+	 */
+	template <typename PreviousLayer_t>
+	class BitSignActivation
 	{
-		// TODO
-		return _outputBuffer;
-	}
+	public:
+		// 出力次元数
+		static constexpr int COMPRESS_OUT_DIM = PreviousLayer_t::COMPRESS_OUT_DIM;
+		static constexpr int COMPRESS_OUT_BITS = COMPRESS_OUT_DIM;
+		static constexpr int COMPRESS_OUT_BLOCKS = BitToBlockCount(COMPRESS_OUT_DIM);
+		static constexpr int PADDED_OUT_BITS = AddPaddingToBitSize(COMPRESS_OUT_BITS);
+		static constexpr int PADDED_OUT_BLOCKS = BitToBlockCount(PADDED_OUT_BITS);
+		// 入力次元数
+		static constexpr int COMPRESS_IN_DIM = COMPRESS_OUT_DIM;
 
-	void ResetWeight()
-	{
-		_prevLayer.ResetWeight();
-	}
+	private:
+		// 前の層
+		PreviousLayer_t _prevLayer;
+		// 前の層に伝播する勾配
+		double _gradsToPrev[BATCH_SIZE * COMPRESS_IN_DIM] = {0};
+		// 出力バッファ（次の層が参照する
+		BitBlock _outputBuffer[PADDED_OUT_BLOCKS] = {0};
+		BitBlock _outputBatchBuffer[BATCH_SIZE * PADDED_OUT_BLOCKS] = {0};
+		double *_inputBatchBuffer; // TODO: int化？
+
+	public:
+		const BitBlock *Forward(const int8_t *netInput)
+		{
+			// TODO
+			return _outputBuffer;
+		}
+
+		void ResetWeight()
+		{
+			_prevLayer.ResetWeight();
+		}
 
 #pragma region Train
 
-	// double -> int_01
-	BitBlock *TrainForward(const BitBlock *netInput)
-	{
-		_inputBatchBuffer = _prevLayer.TrainForward(netInput);
-
-		for (int b = 0; b < BATCH_SIZE; b++)
+		// double -> int_01
+		BitBlock *TrainForward(const BitBlock *netInput)
 		{
-			const int batchShiftIn = b * COMPRESS_IN_DIM;
-			const int batchShiftOut = b * PADDED_OUT_BLOCKS;
-			for (int i_in = 0; i_in < COMPRESS_IN_DIM; i_in++)
+			_inputBatchBuffer = _prevLayer.TrainForward(netInput);
+
+			for (int b = 0; b < BATCH_SIZE; b++)
 			{
-				// TODO ビット並列化
-				const double x = _inputBatchBuffer[batchShiftIn + i_in];
-				const double htanh = std::max(-1.0, std::min(1.0, x));
-				const double probPositive = (htanh + 1.0) / 2.0;
-				const double rand = Random::GetReal01();
-				const BitBlock isPositive = (rand < probPositive) ? 1 : 0;
-
-				const int blockIdx = GetBlockIndex(i_in);
-				const int bitShift = GetBitIndexInBlock(i_in);
-				const BitBlock block = _outputBatchBuffer[batchShiftOut + blockIdx];
-				const BitBlock mask = ~(1 << bitShift);
-				const BitBlock newBit = isPositive << bitShift;
-				const BitBlock result = (block & mask) | newBit;
-
-				_outputBatchBuffer[batchShiftOut + blockIdx] = result;
-			}
-		}
-		return _outputBatchBuffer;
-	}
-
-	void TrainBackward(const GradientType *nextGrad)
-	{
-		for (int b = 0; b < BATCH_SIZE; b++)
-		{
-			const int batchShiftIn = b * COMPRESS_IN_DIM;
-			const int batchShiftOut = b * COMPRESS_OUT_DIM;
-			for (int i = 0; i < COMPRESS_OUT_DIM; i++)
-			{
-				const double g = nextGrad[batchShiftOut + i];
-
-				// d_Hard-tanh
-				if (std::abs(_inputBatchBuffer[batchShiftIn + i]) <= 1)
+				const int batchShiftIn = b * COMPRESS_IN_DIM;
+				const int batchShiftOut = b * PADDED_OUT_BLOCKS;
+				for (int i_in = 0; i_in < COMPRESS_IN_DIM; i_in++)
 				{
-					_gradsToPrev[batchShiftOut + i] = g;
-				}
-				else
-				{
-					_gradsToPrev[batchShiftOut + i] = 0;
+					// TODO ビット並列化
+					const double x = _inputBatchBuffer[batchShiftIn + i_in];
+					const double htanh = std::max(-1.0, std::min(1.0, x));
+					const double probPositive = (htanh + 1.0) / 2.0;
+					const double rand = Random::GetReal01();
+					const BitBlock isPositive = (rand < probPositive) ? 1 : 0;
+
+					const int blockIdx = GetBlockIndex(i_in);
+					const int bitShift = GetBitIndexInBlock(i_in);
+					const BitBlock block = _outputBatchBuffer[batchShiftOut + blockIdx];
+					const BitBlock mask = ~(1 << bitShift);
+					const BitBlock newBit = isPositive << bitShift;
+					const BitBlock result = (block & mask) | newBit;
+
+					_outputBatchBuffer[batchShiftOut + blockIdx] = result;
 				}
 			}
+			return _outputBatchBuffer;
 		}
-		_prevLayer.TrainBackward(_gradsToPrev);
-	}
+
+		void TrainBackward(const GradientType *nextGrad)
+		{
+			for (int b = 0; b < BATCH_SIZE; b++)
+			{
+				const int batchShiftIn = b * COMPRESS_IN_DIM;
+				const int batchShiftOut = b * COMPRESS_OUT_DIM;
+				for (int i = 0; i < COMPRESS_OUT_DIM; i++)
+				{
+					const double g = nextGrad[batchShiftOut + i];
+
+					// d_Hard-tanh
+					if (std::abs(_inputBatchBuffer[batchShiftIn + i]) <= 1)
+					{
+						_gradsToPrev[batchShiftOut + i] = g;
+					}
+					else
+					{
+						_gradsToPrev[batchShiftOut + i] = 0;
+					}
+				}
+			}
+			_prevLayer.TrainBackward(_gradsToPrev);
+		}
 
 #pragma endregion
-};
+	};
+}
 
 #endif

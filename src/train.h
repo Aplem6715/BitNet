@@ -3,30 +3,24 @@
 
 #include "layers/layers.h"
 
-namespace int_net
+namespace bitnet
 {
-    using Input = IntInputLayer<2>;
-    using Hidden1 = IntSignActivation<IntDenseLayer<Input, 32>>;
-    using Hidden2 = IntSignActivation<IntDenseLayer<Hidden1, 16>>;
-    using Output = IntDenseLayer<Hidden2, 1>;
-    using Network = Output;
-}
+    using IInput = IntInputLayer<2>;
+    using IHidden1 = IntSignActivation<IntDenseLayer<IInput, 32>>;
+    using IHidden2 = IntSignActivation<IntDenseLayer<IHidden1, 16>>;
+    using IOutput = IntDenseLayer<IHidden2, 1>;
+    using IntNetwork = IOutput;
 
-namespace bit_net
-{
-    using Input = BitInputLayer<2>;
-    using Hidden1 = BitSignActivation<BitDenseLayer<Input, 32>>;
-    using Hidden2 = BitSignActivation<BitDenseLayer<Hidden1, 16>>;
-    using Output = BitDenseLayer<Hidden2, 1>;
-    using Network = Output;
-}
+    using BInput = BitInputLayer<2>;
+    using BHidden1 = BitSignActivation<BitDenseLayer<BInput, 32>>;
+    using BHidden2 = BitSignActivation<BitDenseLayer<BHidden1, 16>>;
+    using BOutput = BitDenseLayer<BHidden2, 1>;
+    using BitNetwork = BOutput;
 
-namespace train
-{
     template <typename NetType>
     void Train(NetType &net, int nbTrain, double scale, bool shouldBitInput);
 
     template <typename NetType>
-    void Test(NetType &net, int nbTest, double scale, bool shouldBitInput, double* diffOut);
+    void Test(NetType &net, int nbTest, double scale, bool shouldBitInput, double *diffOut);
 }
 #endif

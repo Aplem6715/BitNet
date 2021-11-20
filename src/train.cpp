@@ -4,19 +4,19 @@
 #include "util/make_data.h"
 #include "net_common.h"
 
-namespace train
+namespace bitnet
 {
     template <typename NetType>
     double *Forward(NetType &net, const int8_t *input, const uint8_t *binInput);
 
     template <>
-    double *Forward<int_net::Network>(int_net::Network &net, const int8_t *input, const uint8_t *binInput)
+    double *Forward<IntNetwork>(IntNetwork &net, const int8_t *input, const uint8_t *binInput)
     {
         return net.TrainForward(input);
     }
 
     template <>
-    double *Forward<bit_net::Network>(bit_net::Network &net, const int8_t *input, const uint8_t *binInput)
+    double *Forward<BitNetwork>(BitNetwork &net, const int8_t *input, const uint8_t *binInput)
     {
         return net.TrainForward(binInput);
     }
@@ -53,8 +53,8 @@ namespace train
         }
         std::cout << maeSum / scale / nbTrain << std::endl;
     }
-    template void Train<int_net::Network>(int_net::Network &net, int nbTrain, double scale, bool shouldBitInput);
-    template void Train<bit_net::Network>(bit_net::Network &net, int nbTrain, double scale, bool shouldBitInput);
+    template void Train<IntNetwork>(IntNetwork &net, int nbTrain, double scale, bool shouldBitInput);
+    template void Train<BitNetwork>(BitNetwork &net, int nbTrain, double scale, bool shouldBitInput);
 
     template <typename NetType>
     void Test(NetType &net, int nbTest, double scale, bool shouldBitInput, double *diffOut)
@@ -78,6 +78,6 @@ namespace train
             std::cout << (double)teacherData[0] << ":" << pred[0] << std::endl;
         }
     }
-    template void Test<int_net::Network>(int_net::Network &net, int nbTest, double scale, bool shouldBitInput, double *diffOut);
-    template void Test<bit_net::Network>(bit_net::Network &net, int nbTest, double scale, bool shouldBitInput, double *diffOut);
+    template void Test<IntNetwork>(IntNetwork &net, int nbTest, double scale, bool shouldBitInput, double *diffOut);
+    template void Test<BitNetwork>(BitNetwork &net, int nbTest, double scale, bool shouldBitInput, double *diffOut);
 }
