@@ -50,7 +50,7 @@ namespace bitnet
 		// 出力バッファ（次の層が参照する
 		double _outputBuffer[COMPRESS_OUT_DIM] = {0};
 		// バイアス
-		BiasType _bias[COMPRESS_OUT_DIM] = {0};
+		int _bias[COMPRESS_OUT_DIM] = {0};
 		// 2値重み(-1 or 1)
 		alignas(__m256i) BitWeight _weight[COMPRESS_OUT_DIM][PADDED_IN_BLOCKS] = {0};
 
@@ -59,6 +59,8 @@ namespace bitnet
 		double _gradsToPrev[BATCH_SIZE * COMPRESS_IN_DIM] = {0};
 		// 勾配法用の実数値重み
 		double _realWeight[COMPRESS_OUT_DIM][COMPRESS_IN_DIM] = {0};
+		// 勾配法用の実数値バイアス
+		double _realBias[COMPRESS_OUT_DIM] = {0};
 		// バッチ学習版出力バッファ（学習時はこちらのバッファを使用する
 		double _outputBatchBuffer[BATCH_SIZE * COMPRESS_OUT_DIM] = {0};
 		// 勾配計算用の入力バッファ（実態は前の層の出力バッファを参照するポインタ
@@ -81,6 +83,7 @@ namespace bitnet
 		{
 			for (int i_out = 0; i_out < COMPRESS_OUT_DIM; i_out++)
 			{
+				_realBias[i_out] = 0;
 				_bias[i_out] = 0;
 				for (int i_in = 0; i_in < COMPRESS_IN_DIM; i_in++)
 				{
@@ -129,7 +132,7 @@ namespace bitnet
 
 					// 1,-1の合計値に（[plus] - (bitWidth - [minus]) => 2x[1の数] - bitWidth)
 					int sum = 2 * (pop - PADDING_BITS) - COMPRESS_IN_DIM;
-					_outputBatchBuffer[batchShiftOut + i_out] = (sum + (int)_bias[i_out]);
+					_outputBatchBuffer[batchShiftOut + i_out] = sum + _bias[i_out];
 				}
 			}
 
@@ -166,7 +169,7 @@ namespace bitnet
 				// 重み調整
 				for (int i_out = 0; i_out < COMPRESS_OUT_DIM; i_out++)
 				{
-					_bias[i_out] += nextGrad[batchShiftOut + i_out];
+					_realBias[i_out] += nextGrad[batchShiftOut + i_out];
 					for (int i_in = 0; i_in < COMPRESS_IN_DIM; i_in++)
 					{
 						const int blockIdx = GetBlockIndex(i_in);
@@ -181,6 +184,7 @@ namespace bitnet
 			// 2値化
 			for (int i_out = 0; i_out < COMPRESS_OUT_DIM; i_out++)
 			{
+				_bias[i_out] = _realBias[i_out];
 				for (int i_in = 0; i_in < COMPRESS_IN_DIM; i_in++)
 				{
 					// Clipping
