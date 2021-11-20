@@ -21,9 +21,12 @@ namespace bit_net
     using Network = Output;
 }
 
-template <typename NetType>
-void Train(NetType &net, int nbTrain, double scale, bool shouldBitInput);
+namespace train
+{
+    template <typename NetType>
+    void Train(NetType &net, int nbTrain, double scale, bool shouldBitInput);
 
-template <typename NetType>
-void Test(NetType &net, int nbTest, double scale);
+    template <typename NetType>
+    void Test(NetType &net, int nbTest, double scale, bool shouldBitInput, double* diffOut);
+}
 #endif

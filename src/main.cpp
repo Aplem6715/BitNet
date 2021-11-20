@@ -13,9 +13,10 @@ int main()
 	for (int i = 0; i < 100; i++)
 	{
 		// Train<int_net::Network>(net, 100, false);
-		Train<bit_net::Network>(net, 100, 16, true);
+		train::Train<bit_net::Network>(net, 100, 16, true);
 	}
-	Test(net, 10, 16);
+	double diffs[10];
+	train::Test<bit_net::Network>(net, 10, 16, diffs);
 
 	return 0;
 }

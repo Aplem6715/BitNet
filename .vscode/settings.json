@@ -2,7 +2,8 @@
 	"files.associations": {
 		"*.txt": "cmake",
 		"cmath": "cpp",
-		"ostream": "cpp"
+		"ostream": "cpp",
+		"*.tcc": "cpp"
 	},
 	"cSpell.words": [
 		"Binarize"
