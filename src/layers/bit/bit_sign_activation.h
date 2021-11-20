@@ -45,8 +45,8 @@ namespace bitnet
 		// 前の層に伝播する勾配
 		double _gradsToPrev[BATCH_SIZE * COMPRESS_IN_DIM] = {0};
 		// 出力バッファ（次の層が参照する
-		BitBlock _outputBuffer[PADDED_OUT_BLOCKS] = {0};
-		BitBlock _outputBatchBuffer[BATCH_SIZE * PADDED_OUT_BLOCKS] = {0};
+		alignas(__m256i) BitBlock _outputBuffer[PADDED_OUT_BLOCKS] = {0};
+		alignas(__m256i) BitBlock _outputBatchBuffer[BATCH_SIZE * PADDED_OUT_BLOCKS] = {0};
 		double *_inputBatchBuffer; // TODO: int化？
 
 	public:

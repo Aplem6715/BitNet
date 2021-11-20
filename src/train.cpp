@@ -30,7 +30,7 @@ namespace bitnet
         int8_t teacherData[BATCH_SIZE];
         BitBlock binInput[BATCH_SIZE * padded_blocks];
         double diffs[BATCH_SIZE];
-        double lr = 0.001;
+        double lr = 0.0001;
         double maeSum = 0;
         for (int train = 0; train < nbTrain; train++)
         {
@@ -57,7 +57,7 @@ namespace bitnet
     template void Train<BitNetwork>(BitNetwork &net, int nbTrain, double scale, bool shouldBitInput);
 
     template <typename NetType>
-    void Test(NetType &net, int nbTest, double scale, bool shouldBitInput, double *diffOut)
+    void Test(NetType &net, int nbTest, double scale, bool shouldBitInput, bool isSilent, double *diffOut)
     {
         constexpr int dataSize = 2;
         constexpr int padded_blocks = BitToBlockCount(AddPaddingToBitSize(dataSize));
@@ -75,9 +75,12 @@ namespace bitnet
 
             const double *pred = Forward<NetType>(net, inputData, binInput);
             diffOut[i] = (double)teacherData[0] - pred[0];
-            std::cout << (double)teacherData[0] << ":" << pred[0] << std::endl;
+            if (!isSilent)
+            {
+                std::cout << (double)teacherData[0] << ":" << pred[0] << std::endl;
+            }
         }
     }
-    template void Test<IntNetwork>(IntNetwork &net, int nbTest, double scale, bool shouldBitInput, double *diffOut);
-    template void Test<BitNetwork>(BitNetwork &net, int nbTest, double scale, bool shouldBitInput, double *diffOut);
+    template void Test<IntNetwork>(IntNetwork &net, int nbTest, double scale, bool shouldBitInput, bool isSilent, double *diffOut);
+    template void Test<BitNetwork>(BitNetwork &net, int nbTest, double scale, bool shouldBitInput, bool isSilent, double *diffOut);
 }

@@ -49,10 +49,10 @@ namespace bitnet
 		PreviousLayer_t _prevLayer;
 		// 出力バッファ（次の層が参照する
 		double _outputBuffer[COMPRESS_OUT_DIM] = {0};
-		// 2値重み(-1 or 1)
-		BitWeight _weight[COMPRESS_OUT_DIM][PADDED_IN_BLOCKS] = {0};
 		// バイアス
 		BiasType _bias[COMPRESS_OUT_DIM] = {0};
+		// 2値重み(-1 or 1)
+		alignas(__m256i) BitWeight _weight[COMPRESS_OUT_DIM][PADDED_IN_BLOCKS] = {0};
 
 #pragma region Train
 		// 前の層に伝播する勾配
@@ -62,7 +62,7 @@ namespace bitnet
 		// バッチ学習版出力バッファ（学習時はこちらのバッファを使用する
 		double _outputBatchBuffer[BATCH_SIZE * COMPRESS_OUT_DIM] = {0};
 		// 勾配計算用の入力バッファ（実態は前の層の出力バッファを参照するポインタ
-		BitBlock *_inputBatchBuffer;
+		alignas(__m256i) BitBlock *_inputBatchBuffer;
 #pragma endregion
 
 	public:
@@ -111,12 +111,20 @@ namespace bitnet
 				int batchShiftOut = b * COMPRESS_OUT_DIM;
 				for (int i_out = 0; i_out < COMPRESS_OUT_DIM; i_out++)
 				{
+					int pop;
 					// パディング分も含めて±1積和演算
-					int pop = 0;
-					for (int block = 0; block < PADDED_IN_BLOCKS; block++)
+					if (USE_AVX_MADD)
 					{
-						const BitBlock xnor = ~(_inputBatchBuffer[batchShiftInBlock + block] ^ _weight[i_out][block]);
-						pop += __popcnt64(xnor);
+						pop = MaddPopcnt(&_inputBatchBuffer[batchShiftInBlock], _weight[i_out], PADDED_IN_BITS);
+					}
+					else
+					{
+						pop = 0;
+						for (int block = 0; block < PADDED_IN_BLOCKS; block++)
+						{
+							const BitBlock xnor = ~(_inputBatchBuffer[batchShiftInBlock + block] ^ _weight[i_out][block]);
+							pop += __popcnt64(xnor);
+						}
 					}
 
 					// 1,-1の合計値に（[plus] - (bitWidth - [minus]) => 2x[1の数] - bitWidth)

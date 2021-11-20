@@ -37,8 +37,8 @@ namespace bitnet
 
     private:
         // 出力バッファ（次の層が参照する
-        BitBlock _outputBuffer[PADDED_OUT_BLOCKS] = {0};
-        BitBlock _outputBatchBuffer[BATCH_SIZE * PADDED_OUT_BLOCKS] = {0};
+        alignas(__m256i) BitBlock _outputBuffer[PADDED_OUT_BLOCKS] = {0};
+        alignas(__m256i) BitBlock _outputBatchBuffer[BATCH_SIZE * PADDED_OUT_BLOCKS] = {0};
 
     public:
         const BitBlock *Forward(const BitBlock *netInput)

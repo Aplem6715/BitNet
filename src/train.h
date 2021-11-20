@@ -21,6 +21,6 @@ namespace bitnet
     void Train(NetType &net, int nbTrain, double scale, bool shouldBitInput);
 
     template <typename NetType>
-    void Test(NetType &net, int nbTest, double scale, bool shouldBitInput, double *diffOut);
+    void Test(NetType &net, int nbTest, double scale, bool shouldBitInput, bool isSilent, double *diffOut);
 }
 #endif

@@ -6,6 +6,7 @@
 
 namespace bitnet
 {
+	constexpr bool USE_AVX_MADD = true;
 	constexpr int BATCH_SIZE = 16;
 
 	typedef double GradientType;
