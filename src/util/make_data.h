@@ -2,10 +2,40 @@
 #define MAKE_DATA_H_INCLUDED_
 
 #include "random_util.h"
+#include "../net_common.h"
 #include <cstdint>
 
 namespace util
 {
+	void BinarizeInputData(int batchSize, int numData, const int8_t *inputData, BitBlock *binDataOut)
+	{
+		const int padded_blocks = BitToBlockCount(AddPaddingToBitSize(numData));
+
+		// 0クリア
+		for (int b = 0; b < batchSize; b++)
+		{
+			const int batchShift = b * padded_blocks;
+			for (int block = 0; block < padded_blocks; block++)
+			{
+				binDataOut[batchShift + block] = 0;
+			}
+		}
+
+		for (int b = 0; b < batchSize; b++)
+		{
+			const int batchShiftIn = b * numData;
+			const int batchShiftBlock = b * padded_blocks;
+			for (int i = 0; i < numData; i++)
+			{
+				int blockIdx = GetBlockIndex(i);
+				int bitShift = GetBitIndexInBlock(i);
+				uint8_t bit = inputData[batchShiftIn + i] > 0 ? 1 : 0;
+
+				binDataOut[batchShiftBlock + blockIdx] |= bit << bitShift;
+			}
+		}
+	}
+
 	void MakeXORBatch(int batchSize, double tScale, int8_t *inputData, int8_t *teacherData)
 	{
 		constexpr int INPUT_SIZE = 2;
@@ -19,11 +49,33 @@ namespace util
 			inputData[batchShift + 0] = (x1 == 0) ? -1 : 1;
 			inputData[batchShift + 1] = (x2 == 0) ? -1 : 1;
 
-			t = (t == 0) ? 1 : -1;
+			t = (t == 0) ? -1 : 1;
 			teacherData[b] = t * tScale;
 		}
 	}
 
+	void MakePopBatch(int batchSize, double tScale, int8_t *inputData, int8_t *teacherData)
+	{
+		constexpr int INPUT_SIZE = 8;
+		for (int b = 0; b < batchSize; b++)
+		{
+			int batchShift = b * INPUT_SIZE;
+			int8_t t = 0;
+			for (int i = 0; i < INPUT_SIZE; i++)
+			{
+				inputData[batchShift + i] = ((Random::GetUInt() % 2) == 1) ? 1 : -1;
+				if (inputData[batchShift + i] > 0)
+				{
+					t ^= 1;
+				}
+			}
+
+			// teacherData[b] = t / (double)INPUT_SIZE * tScale*2 - tScale;
+			teacherData[b] = t * (double)tScale - tScale / 2;
+		}
+	}
+
+	// TODO: ファイル移動
 	/**
 	 * @brief 勾配と2乗平均誤差を計算する
 	 * 
