@@ -18,7 +18,7 @@ int main()
 		Train<IntNetwork>(net, 100, 16, true);
 	}
 	double diffs[10];
-	Test<IntNetwork>(net, 10, 16, false, diffs);
+	Test<IntNetwork>(net, 10, 16, false, false, diffs);
 
 	return 0;
 }
