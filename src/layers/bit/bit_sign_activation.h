@@ -40,10 +40,10 @@ private:
 	// 前の層
 	PreviousLayer_t _prevLayer;
 	// 前の層に伝播する勾配
-	double _gradsToPrev[BATCH_SIZE * COMPRESS_IN_DIM];
+	double _gradsToPrev[BATCH_SIZE * COMPRESS_IN_DIM] = {0};
 	// 出力バッファ（次の層が参照する
-	BitBlock _outputBuffer[PADDED_OUT_BLOCKS];
-	BitBlock _outputBatchBuffer[BATCH_SIZE * PADDED_OUT_BLOCKS];
+	BitBlock _outputBuffer[PADDED_OUT_BLOCKS] = {0};
+	BitBlock _outputBatchBuffer[BATCH_SIZE * PADDED_OUT_BLOCKS] = {0};
 	double *_inputBatchBuffer; // TODO: int化？
 
 public:
@@ -67,22 +67,25 @@ public:
 
 		for (int b = 0; b < BATCH_SIZE; b++)
 		{
+			const int batchShiftIn = b * COMPRESS_IN_DIM;
 			const int batchShiftOut = b * PADDED_OUT_BLOCKS;
 			for (int i_in = 0; i_in < COMPRESS_IN_DIM; i_in++)
 			{
 				// TODO ビット並列化
-				const double x = _inputBatchBuffer[batchShiftOut + i_in];
+				const double x = _inputBatchBuffer[batchShiftIn + i_in];
 				const double htanh = std::max(-1.0, std::min(1.0, x));
 				const double probPositive = (htanh + 1.0) / 2.0;
-				const BitBlock isPositive = Random::GetReal01() < probPositive;
+				const double rand = Random::GetReal01();
+				const BitBlock isPositive = (rand < probPositive) ? 1 : 0;
 
 				const int blockIdx = GetBlockIndex(i_in);
-				const BitBlock bitShift = GetBitIndexInBlock(i_in);
+				const int bitShift = GetBitIndexInBlock(i_in);
 				const BitBlock block = _outputBatchBuffer[batchShiftOut + blockIdx];
 				const BitBlock mask = ~(1 << bitShift);
 				const BitBlock newBit = isPositive << bitShift;
+				const BitBlock result = (block & mask) | newBit;
 
-				_outputBatchBuffer[batchShiftOut + blockIdx] = (block & mask) | newBit;
+				_outputBatchBuffer[batchShiftOut + blockIdx] = result;
 			}
 		}
 		return _outputBatchBuffer;
@@ -92,13 +95,14 @@ public:
 	{
 		for (int b = 0; b < BATCH_SIZE; b++)
 		{
+			const int batchShiftIn = b * COMPRESS_IN_DIM;
 			const int batchShiftOut = b * COMPRESS_OUT_DIM;
 			for (int i = 0; i < COMPRESS_OUT_DIM; i++)
 			{
 				const double g = nextGrad[batchShiftOut + i];
 
 				// d_Hard-tanh
-				if (std::abs(_inputBatchBuffer[batchShiftOut + i]) <= 1)
+				if (std::abs(_inputBatchBuffer[batchShiftIn + i]) <= 1)
 				{
 					_gradsToPrev[batchShiftOut + i] = g;
 				}

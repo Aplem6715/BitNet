@@ -3,5 +3,8 @@
 		"*.txt": "cmake",
 		"cmath": "cpp",
 		"ostream": "cpp"
-	}
+	},
+	"cSpell.words": [
+		"Binarize"
+	]
 }
