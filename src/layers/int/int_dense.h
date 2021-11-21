@@ -47,7 +47,7 @@ namespace bitnet
 
 #pragma region Train
 		// 前の層に伝播する勾配
-		double _gradsToPrev[BATCH_SIZE * COMPRESS_IN_DIM];
+		GradientType _gradsToPrev[BATCH_SIZE * COMPRESS_IN_DIM];
 		// 勾配法用の実数値重み
 		double _realWeight[COMPRESS_OUT_DIM][COMPRESS_IN_DIM] = {0};
 		// バッチ学習版出力バッファ（学習時はこちらのバッファを使用する
@@ -129,7 +129,7 @@ namespace bitnet
 				int batchShiftOut = b * COMPRESS_OUT_DIM;
 				for (int i_in = 0; i_in < COMPRESS_IN_DIM; i_in++)
 				{
-					double sum = 0;
+					GradientType sum = 0;
 					for (int i_out = 0; i_out < COMPRESS_OUT_DIM; i_out++)
 					{
 						sum += nextGrad[batchShiftOut + i_out] * _weight[i_out][i_in];

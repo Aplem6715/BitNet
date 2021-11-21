@@ -21,7 +21,7 @@ TEST(BitNet, TrainSameCheck_Bit_Int)
     {
         Train<IntNetwork>(*intNet, trainNum, 16, false);
     }
-    double intDiffs[testNum];
+    GradientType intDiffs[testNum];
     clock_t intDuration = 0;
     for (int i = 0; i < testIter; i++)
     {
@@ -40,7 +40,7 @@ TEST(BitNet, TrainSameCheck_Bit_Int)
         std::cout << i << "\r";
         Train<BitNetwork>(*bitNet, trainNum, 16, true);
     }
-    double bitDiffs[testNum];
+    GradientType bitDiffs[testNum];
     clock_t bitDuration = 0;
     for (int i = 0; i < testIter; i++)
     {

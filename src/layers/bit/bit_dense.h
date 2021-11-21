@@ -47,25 +47,27 @@ namespace bitnet
 		static constexpr int PADDED_OUT_BLOCKS = AddPaddingToBytes(COMPRESS_OUT_DIM);
 
 	private:
-		// 前の層
-		PreviousLayer_t _prevLayer;
+#pragma region Train
+		// バッチ学習版出力バッファ（学習時はこちらのバッファを使用する
+		alignas(__m256i) OutputType _outputBatchBuffer[BATCH_SIZE * PADDED_OUT_BLOCKS] = {0};
+#pragma endregion
 		// 出力バッファ（次の層が参照する
 		alignas(__m256i) OutputType _outputBuffer[PADDED_OUT_BLOCKS] = {0};
-		// バイアス
-		int _bias[COMPRESS_OUT_DIM] = {0};
 		// 2値重み(-1 or 1)
 		alignas(__m256i) BitWeight _weight[COMPRESS_OUT_DIM][PADDED_IN_BLOCKS] = {0};
+		// 前の層
+		PreviousLayer_t _prevLayer;
+		// バイアス
+		int _bias[COMPRESS_OUT_DIM] = {0};
 
 #pragma region Train
 		// 前の層に伝播する勾配
-		double _gradsToPrev[BATCH_SIZE * COMPRESS_IN_DIM] = {0};
+		GradientType _gradsToPrev[BATCH_SIZE * COMPRESS_IN_DIM] = {0};
 		// 勾配法用の実数値重み
 		double _realWeight[COMPRESS_OUT_DIM][COMPRESS_IN_DIM] = {0};
 		// 勾配法用の実数値バイアス
 		double _realBias[COMPRESS_OUT_DIM] = {0};
 		// TODO 整数化
-		// バッチ学習版出力バッファ（学習時はこちらのバッファを使用する
-		alignas(__m256i) OutputType _outputBatchBuffer[BATCH_SIZE * PADDED_OUT_BLOCKS] = {0};
 		// 勾配計算用の入力バッファ（実態は前の層の出力バッファを参照するポインタ
 		BitBlock *_inputBatchBuffer;
 #pragma endregion
@@ -201,7 +203,7 @@ namespace bitnet
 				{
 					const int blockIdx = GetBlockIndex(i_in);
 					const int bitShift = GetBitIndexInBlock(i_in);
-					double sum = 0;
+					GradientType sum = 0;
 					for (int i_out = 0; i_out < COMPRESS_OUT_DIM; i_out++)
 					{
 						const BitBlock bits = _weight[i_out][blockIdx];

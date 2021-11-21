@@ -25,7 +25,7 @@ namespace bitnet
 		// 前の層
 		PreviousLayer_t _prevLayer;
 		// 前の層に伝播する勾配
-		double _gradsToPrev[BATCH_SIZE * COMPRESS_IN_DIM];
+		GradientType _gradsToPrev[BATCH_SIZE * COMPRESS_IN_DIM];
 		// 出力バッファ（次の層が参照する
 		IntBitType _outputBuffer[COMPRESS_OUT_DIM];
 		IntBitType _outputBatchBuffer[BATCH_SIZE * COMPRESS_OUT_DIM];
@@ -80,7 +80,7 @@ namespace bitnet
 				int batchShiftOut = b * COMPRESS_OUT_DIM;
 				for (int i = 0; i < COMPRESS_OUT_DIM; i++)
 				{
-					double g = nextGrad[batchShiftOut + i];
+					GradientType g = nextGrad[batchShiftOut + i];
 
 					// d_Hard-tanh
 					if (std::abs(_inputBatchBuffer[batchShiftOut + i]) <= 1)

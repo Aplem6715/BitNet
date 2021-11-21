@@ -10,7 +10,7 @@ namespace bitnet
 	constexpr bool USE_AVX_SIGN = true;
 	constexpr int BATCH_SIZE = 16;
 
-	typedef double GradientType;
+	typedef float GradientType;
 	typedef double BiasType;
 
 	typedef double RealWeight;

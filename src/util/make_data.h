@@ -90,7 +90,7 @@ namespace bitnet
 	 * @param mae 絶対値平均誤差出力
 	 * @return double 
 	 */
-		double CalcSquaredError(int batchSize, int predSize, double tScale, double lr, const int32_t *predData, const int8_t *teacherData, double *diffOuts, double *maeOut)
+		double CalcSquaredError(int batchSize, int predSize, double tScale, double lr, const int32_t *predData, const int8_t *teacherData, float *diffOuts, double *maeOut)
 		{
 			double totalLoss = 0;
 			double totalAE = 0;
@@ -102,7 +102,7 @@ namespace bitnet
 					int idx = batchShift + i;
 					double y = predData[idx];
 					double t = teacherData[idx];
-					double diff = lr * (t - y);
+					float diff = lr * (t - y);
 					diffOuts[idx] = diff;
 
 					double ae = std::abs(y - t);

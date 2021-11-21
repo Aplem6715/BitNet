@@ -44,7 +44,7 @@ namespace bitnet
         int8_t inputData[BATCH_SIZE * dataSize];
         int8_t teacherData[BATCH_SIZE];
         BitBlock binInput[BATCH_SIZE * padded_blocks];
-        double diffs[BATCH_SIZE];
+        GradientType diffs[BATCH_SIZE];
         double lr = 0.0001;
         double maeSum = 0;
         for (int train = 0; train < nbTrain; train++)
@@ -72,7 +72,7 @@ namespace bitnet
     template void Train<BitNetwork>(BitNetwork &net, int nbTrain, double scale, bool shouldBitInput);
 
     template <typename NetType>
-    clock_t Test(NetType &net, int nbTest, double scale, bool shouldBitInput, bool isSilent, double *diffOut)
+    clock_t Test(NetType &net, int nbTest, double scale, bool shouldBitInput, bool isSilent, float *diffOut)
     {
         constexpr int dataSize = 2;
         constexpr int padded_blocks = BitToBlockCount(AddPaddingToBitSize(dataSize));
@@ -94,14 +94,14 @@ namespace bitnet
             clock_t stop = clock();
             timer += stop - start;
 
-            diffOut[i] = (double)teacherData[0] - pred[0];
+            diffOut[i] = (float)teacherData[0] - pred[0];
             if (!isSilent)
             {
-                std::cout << (double)teacherData[0] << ":" << pred[0] << std::endl;
+                std::cout << (float)teacherData[0] << ":" << pred[0] << std::endl;
             }
         }
         return timer;
     }
-    template clock_t Test<IntNetwork>(IntNetwork &net, int nbTest, double scale, bool shouldBitInput, bool isSilent, double *diffOut);
-    template clock_t Test<BitNetwork>(BitNetwork &net, int nbTest, double scale, bool shouldBitInput, bool isSilent, double *diffOut);
+    template clock_t Test<IntNetwork>(IntNetwork &net, int nbTest, double scale, bool shouldBitInput, bool isSilent, float *diffOut);
+    template clock_t Test<BitNetwork>(BitNetwork &net, int nbTest, double scale, bool shouldBitInput, bool isSilent, float *diffOut);
 }

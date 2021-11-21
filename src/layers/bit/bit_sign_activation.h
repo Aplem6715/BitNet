@@ -29,6 +29,7 @@ namespace bitnet
 	template <typename PreviousLayer_t>
 	class BitSignActivation
 	{
+
 	public:
 		// 出力次元数
 		static constexpr int COMPRESS_OUT_DIM = PreviousLayer_t::COMPRESS_OUT_DIM;
@@ -41,13 +42,13 @@ namespace bitnet
 		static constexpr int PADDED_IN_BLOCKS = AddPaddingToBytes(COMPRESS_IN_DIM);
 
 	private:
-		// 前の層
-		PreviousLayer_t _prevLayer;
-		// 前の層に伝播する勾配
-		double _gradsToPrev[BATCH_SIZE * COMPRESS_IN_DIM] = {0};
 		// 出力バッファ（次の層が参照する
 		alignas(__m256i) BitBlock _outputBuffer[PADDED_OUT_BLOCKS] = {0};
 		alignas(__m256i) BitBlock _outputBatchBuffer[BATCH_SIZE * PADDED_OUT_BLOCKS] = {0};
+		// 前の層
+		PreviousLayer_t _prevLayer;
+		// 前の層に伝播する勾配
+		GradientType _gradsToPrev[BATCH_SIZE * COMPRESS_IN_DIM] = {0};
 		int8_t *_inputBatchBuffer;
 
 	public:
@@ -69,7 +70,7 @@ namespace bitnet
 
 				// 	_outputBuffer[b] = _mm256_movemask_epi8(~x);
 				// }
-				CollectSignBit(input, reinterpret_cast<int*>(_outputBuffer), PADDED_IN_BLOCKS);
+				CollectSignBit(input, reinterpret_cast<int *>(_outputBuffer), PADDED_IN_BLOCKS);
 			}
 			else
 			{
@@ -138,7 +139,7 @@ namespace bitnet
 				const int batchShiftOut = b * COMPRESS_OUT_DIM;
 				for (int i = 0; i < COMPRESS_OUT_DIM; i++)
 				{
-					const double g = nextGrad[batchShiftOut + i];
+					const GradientType g = nextGrad[batchShiftOut + i];
 
 					// d_Hard-tanh
 					if (std::abs(_inputBatchBuffer[batchShiftIn + i]) <= 1)
