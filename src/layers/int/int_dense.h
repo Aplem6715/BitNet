@@ -38,6 +38,8 @@ namespace bitnet
 	private:
 		// 前の層
 		PreviousLayer_t _prevLayer;
+		// 入力バッファへのポインタ
+		IntBitType *_inputBuffer;
 		// 出力バッファ（次の層が参照する
 		int32_t _outputBuffer[COMPRESS_OUT_DIM];
 		// 2値重み(-1 or 1)
@@ -56,9 +58,22 @@ namespace bitnet
 		IntBitType *_inputBatchBuffer;
 #pragma endregion
 	public:
-		const double *Forward(const int8_t *netInput)
+		const int32_t *Forward(const int8_t *netInput)
 		{
-			// TODO
+			_inputBuffer = _prevLayer.Forward(netInput);
+
+			for (int i_out = 0; i_out < COMPRESS_OUT_DIM; i_out++)
+			{
+				// パディング分も含めて±1積和演算
+				int sum = _bias[i_out];
+				for (int i_in = 0; i_in < COMPRESS_IN_DIM; i_in++)
+				{
+					sum += _inputBuffer[i_in] * _weight[i_out][i_in];
+				}
+
+				_outputBuffer[i_out] = sum;
+			}
+
 			return _outputBuffer;
 		}
 

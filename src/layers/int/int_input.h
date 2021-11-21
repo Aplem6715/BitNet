@@ -28,7 +28,11 @@ namespace bitnet
 	public:
 		const IntBitType *Forward(const int8_t *netInput)
 		{
-			// TODO
+			// バッファに入力を詰める
+			for (int i_out = 0; i_out < COMPRESS_OUT_DIM; i_out++)
+			{
+				_outputBuffer[i_out] = netInput[i_out];
+			}
 			return _outputBuffer;
 		}
 
