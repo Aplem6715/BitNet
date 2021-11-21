@@ -7,16 +7,16 @@
 namespace bitnet
 {
     template <typename NetType>
-    double *Forward(NetType &net, const int8_t *input, const uint8_t *binInput);
+    int32_t *Forward(NetType &net, const int8_t *input, const uint8_t *binInput);
 
     template <>
-    double *Forward<IntNetwork>(IntNetwork &net, const int8_t *input, const uint8_t *binInput)
+    int32_t *Forward<IntNetwork>(IntNetwork &net, const int8_t *input, const uint8_t *binInput)
     {
         return net.TrainForward(input);
     }
 
     template <>
-    double *Forward<BitNetwork>(BitNetwork &net, const int8_t *input, const uint8_t *binInput)
+    int32_t *Forward<BitNetwork>(BitNetwork &net, const int8_t *input, const uint8_t *binInput)
     {
         return net.TrainForward(binInput);
     }
@@ -42,7 +42,7 @@ namespace bitnet
                 util::BinarizeInputData(BATCH_SIZE, dataSize, inputData, binInput);
             }
 
-            const double *pred = Forward<NetType>(net, inputData, binInput);
+            const int32_t *pred = Forward<NetType>(net, inputData, binInput);
 
             double mae;
             double mse = util::CalcSquaredError(BATCH_SIZE, 1, scale, lr, pred, teacherData, diffs, &mae);
@@ -73,7 +73,7 @@ namespace bitnet
                 util::BinarizeInputData(BATCH_SIZE, dataSize, inputData, binInput);
             }
 
-            const double *pred = Forward<NetType>(net, inputData, binInput);
+            const int32_t *pred = Forward<NetType>(net, inputData, binInput);
             diffOut[i] = (double)teacherData[0] - pred[0];
             if (!isSilent)
             {

@@ -8,17 +8,17 @@ int main()
 	using namespace bitnet;
 
 	// int_net::Network net;
-	IntNetwork net;
+	BitNetwork net;
 	net.ResetWeight();
 
 	Random::Seed(42);
 	for (int i = 0; i < 100; i++)
 	{
 		// Train<int_net::Network>(net, 100, false);
-		Train<IntNetwork>(net, 100, 16, true);
+		Train<BitNetwork>(net, 100, 16, true);
 	}
 	double diffs[10];
-	Test<IntNetwork>(net, 10, 16, false, false, diffs);
+	Test<BitNetwork>(net, 10, 16, true, false, diffs);
 
 	return 0;
 }

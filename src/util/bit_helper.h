@@ -23,6 +23,12 @@ namespace bitnet
     constexpr int BYTE_BIT_WIDTH = 8;
     constexpr int POPCNT_BIT_WIDTH = 64;
     constexpr int SIMD_BIT_WIDTH = 256;
+    constexpr int SIMD_BYTE_WIDTH = SIMD_BIT_WIDTH / BYTE_BIT_WIDTH;
+
+    constexpr int AddPaddingToBytes(int byteSize)
+    {
+        return std::ceil(byteSize / (double)(SIMD_BYTE_WIDTH)) * SIMD_BYTE_WIDTH;
+    }
 
     constexpr int AddPaddingToBitSize(int bitSize)
     {
@@ -61,7 +67,7 @@ namespace bitnet
         int sum = 0;
         for (int b = 0; b < blocks; b++)
         {
-            const int blockShift = b * SIMD_BIT_WIDTH / BYTE_BIT_WIDTH;
+            const int blockShift = b * SIMD_BYTE_WIDTH;
             vector32 x = _mm256_load_si256((vector32 *)&(bitBlocks[blockShift]));
             vector32 w = _mm256_load_si256((vector32 *)&(weightBlocks[blockShift]));
             vector32 mul = ~_mm256_xor_si256(x, w);
@@ -74,6 +80,24 @@ namespace bitnet
             }
         }
         return sum;
+    }
+
+    /**
+     * @brief 各バイトの符号（MSB）を抽出してビット列を作成する
+     * 
+     * @param inputs 入力バイト列
+     * @param dst 生成されるビット列の格納先. 長さ[byteLength÷32]の配列アドレス
+     * @param byteLength 入力バイト数
+     */
+    inline void CollectSignBit(const int8_t *inputs, int *dst, const int byteLength)
+    {
+        const int blocks = byteLength / SIMD_BYTE_WIDTH;
+        for (int b = 0; b < blocks; b++)
+        {
+            const int blockShift = b * SIMD_BYTE_WIDTH;
+            vector32 x = _mm256_load_si256((vector32 *)&(inputs[blockShift]));
+            dst[b] = _mm256_movemask_epi8(x);
+        }
     }
 }
 

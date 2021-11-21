@@ -14,7 +14,7 @@ namespace bitnet
     using BInput = BitInputLayer<2>;
     using BHidden1 = BitSignActivation<BitDenseLayer<BInput, 32>>;
     using BHidden2 = BitSignActivation<BitDenseLayer<BHidden1, 16>>;
-    using BOutput = BitDenseLayer<BHidden2, 1>;
+    using BOutput = BitDenseLayer<BHidden2, 1, true>;
     using BitNetwork = BOutput;
 
     template <typename NetType>

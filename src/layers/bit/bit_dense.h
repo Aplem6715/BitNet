@@ -16,10 +16,11 @@
 #ifndef BIT_DENSE_H_INCLUDED_
 #define BIT_DENSE_H_INCLUDED_
 
+#include <type_traits>
+#include <cmath>
 #include "../../util/random_util.h"
 #include "../../net_common.h"
 #include "../../util/bit_helper.h"
-#include <cmath>
 
 namespace bitnet
 {
@@ -28,11 +29,13 @@ namespace bitnet
 	 * 
 	 * @tparam PreviousLayer_t 前の層の型
 	 * @tparam OutputBits 出力次元数（ニューロン数
+	 * @tparam isOutputLayer 出力層ならtrue(default:false)
 	 */
-	template <typename PreviousLayer_t, int OutputBits>
+	template <typename PreviousLayer_t, int OutputBits, bool isOutputLayer = false>
 	class BitDenseLayer
 	{
 	public:
+		using OutputType = typename std::conditional<isOutputLayer, int32_t, int8_t>::type;
 		// 入力次元（前の層のニューロン）の数
 		static constexpr int COMPRESS_IN_DIM = PreviousLayer_t::COMPRESS_OUT_DIM;
 		static constexpr int PADDED_IN_BITS = AddPaddingToBitSize(COMPRESS_IN_DIM);
@@ -41,14 +44,14 @@ namespace bitnet
 
 		// 出力次元（ニューロン）の数
 		static constexpr int COMPRESS_OUT_DIM = OutputBits;
-		// 入力側と表記を統一するための変数。COMPRESS_OUT_DIMと値は同じ
-		static constexpr int PADDED_OUT_BLOCKS = COMPRESS_OUT_DIM;
+		static constexpr int PADDED_OUT_BLOCKS = AddPaddingToBytes(COMPRESS_OUT_DIM);
 
 	private:
 		// 前の層
 		PreviousLayer_t _prevLayer;
+		// TODO 整数化
 		// 出力バッファ（次の層が参照する
-		double _outputBuffer[COMPRESS_OUT_DIM] = {0};
+		OutputType _outputBuffer[PADDED_OUT_BLOCKS] = {0};
 		// バイアス
 		int _bias[COMPRESS_OUT_DIM] = {0};
 		// 2値重み(-1 or 1)
@@ -61,8 +64,9 @@ namespace bitnet
 		double _realWeight[COMPRESS_OUT_DIM][COMPRESS_IN_DIM] = {0};
 		// 勾配法用の実数値バイアス
 		double _realBias[COMPRESS_OUT_DIM] = {0};
+		// TODO 整数化
 		// バッチ学習版出力バッファ（学習時はこちらのバッファを使用する
-		double _outputBatchBuffer[BATCH_SIZE * COMPRESS_OUT_DIM] = {0};
+		OutputType _outputBatchBuffer[BATCH_SIZE * PADDED_OUT_BLOCKS] = {0};
 		// 勾配計算用の入力バッファ（実態は前の層の出力バッファを参照するポインタ
 		alignas(__m256i) BitBlock *_inputBatchBuffer;
 #pragma endregion
@@ -104,17 +108,17 @@ namespace bitnet
 		}
 
 #pragma region Train
-		double *TrainForward(const BitBlock *netInput)
+		OutputType *TrainForward(const BitBlock *netInput)
 		{
 			_inputBatchBuffer = _prevLayer.TrainForward(netInput);
 
 			for (int b = 0; b < BATCH_SIZE; b++)
 			{
 				int batchShiftInBlock = b * PADDED_IN_BLOCKS;
-				int batchShiftOut = b * COMPRESS_OUT_DIM;
+				int batchShiftOut = b * PADDED_OUT_BLOCKS;
 				for (int i_out = 0; i_out < COMPRESS_OUT_DIM; i_out++)
 				{
-					int pop;
+					int32_t pop;
 					// パディング分も含めて±1積和演算
 					if (USE_AVX_MADD)
 					{
@@ -131,8 +135,22 @@ namespace bitnet
 					}
 
 					// 1,-1の合計値に（[plus] - (bitWidth - [minus]) => 2x[1の数] - bitWidth)
-					int sum = 2 * (pop - PADDING_BITS) - COMPRESS_IN_DIM;
-					_outputBatchBuffer[batchShiftOut + i_out] = sum + _bias[i_out];
+					const int32_t sum = 2 * (pop - PADDING_BITS) - COMPRESS_IN_DIM;
+					const int32_t result = sum + _bias[i_out];
+					if (isOutputLayer)
+					{
+						// 出力層ではパディングの必要がない
+						_outputBatchBuffer[b * COMPRESS_OUT_DIM + i_out] = static_cast<OutputType>(result);
+					}
+					else
+					{
+						// 算術シフトのコンパイラでのみ正常動作する
+						static_assert((((int32_t)0xffffffff >> 1) == 0xffffffff));
+						static_assert((((int32_t)0x00000001 >> 1) == 0x00000000));
+						constexpr int32_t MSB32 = 1 << 31;
+						// 次のsign層で符号ビットが分かればいい（32bitのMSBが8bitMSBに来るようにシフト）
+						_outputBatchBuffer[batchShiftOut + i_out] = static_cast<OutputType>((result & MSB32) >> 24 | result /*1と0の区別をつけるため，推論時は不要？*/);
+					}
 				}
 			}
 

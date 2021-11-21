@@ -29,7 +29,7 @@ namespace bitnet
 		// 出力バッファ（次の層が参照する
 		IntBitType _outputBuffer[COMPRESS_OUT_DIM];
 		IntBitType _outputBatchBuffer[BATCH_SIZE * COMPRESS_OUT_DIM];
-		double *_inputBatchBuffer;
+		int32_t *_inputBatchBuffer;
 
 	public:
 		const IntBitType *Forward(const int8_t *netInput)
@@ -45,7 +45,7 @@ namespace bitnet
 
 #pragma region Train
 
-		// double -> int_01
+		// int32_t -> int_01
 		IntBitType *TrainForward(const int8_t *netInput)
 		{
 			_inputBatchBuffer = _prevLayer.TrainForward(netInput);
@@ -55,8 +55,8 @@ namespace bitnet
 				int batchShiftOut = b * COMPRESS_OUT_DIM;
 				for (int i_out = 0; i_out < COMPRESS_OUT_DIM; i_out++)
 				{
-					double x = _inputBatchBuffer[batchShiftOut + i_out];
-					double htanh = std::max(-1.0, std::min(1.0, x));
+					int32_t x = _inputBatchBuffer[batchShiftOut + i_out];
+					const int32_t htanh = std::max(static_cast<int32_t>(-1), std::min(static_cast<int32_t>(1), x));
 					double probPositive = (htanh + 1.0) / 2.0;
 					bool isPositive = Random::GetReal01() < probPositive;
 

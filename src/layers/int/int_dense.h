@@ -39,7 +39,7 @@ namespace bitnet
 		// 前の層
 		PreviousLayer_t _prevLayer;
 		// 出力バッファ（次の層が参照する
-		double _outputBuffer[COMPRESS_OUT_DIM];
+		int32_t _outputBuffer[COMPRESS_OUT_DIM];
 		// 2値重み(-1 or 1)
 		IntBitWeight _weight[COMPRESS_OUT_DIM][COMPRESS_IN_DIM];
 		// バイアス
@@ -51,7 +51,7 @@ namespace bitnet
 		// 勾配法用の実数値重み
 		double _realWeight[COMPRESS_OUT_DIM][COMPRESS_IN_DIM] = {0};
 		// バッチ学習版出力バッファ（学習時はこちらのバッファを使用する
-		double _outputBatchBuffer[BATCH_SIZE * COMPRESS_OUT_DIM];
+		int32_t _outputBatchBuffer[BATCH_SIZE * COMPRESS_OUT_DIM];
 		// 勾配計算用の入力バッファ（実態は前の層の出力バッファを参照するポインタ
 		IntBitType *_inputBatchBuffer;
 #pragma endregion
@@ -83,7 +83,7 @@ namespace bitnet
 		}
 
 #pragma region Train
-		double *TrainForward(const int8_t *netInput)
+		int32_t *TrainForward(const int8_t *netInput)
 		{
 			_inputBatchBuffer = _prevLayer.TrainForward(netInput);
 

@@ -38,6 +38,7 @@ namespace bitnet
 		static constexpr int PADDED_OUT_BLOCKS = BitToBlockCount(PADDED_OUT_BITS);
 		// 入力次元数
 		static constexpr int COMPRESS_IN_DIM = COMPRESS_OUT_DIM;
+		static constexpr int PADDED_IN_BLOCKS = AddPaddingToBytes(COMPRESS_IN_DIM);
 
 	private:
 		// 前の層
@@ -47,12 +48,17 @@ namespace bitnet
 		// 出力バッファ（次の層が参照する
 		alignas(__m256i) BitBlock _outputBuffer[PADDED_OUT_BLOCKS] = {0};
 		alignas(__m256i) BitBlock _outputBatchBuffer[BATCH_SIZE * PADDED_OUT_BLOCKS] = {0};
-		double *_inputBatchBuffer; // TODO: int化？
+		int8_t *_inputBuffer;
+		int8_t *_inputBatchBuffer;
 
 	public:
-		const BitBlock *Forward(const int8_t *netInput)
+		const BitBlock *Forward(const BitBlock *netInput)
 		{
-			// TODO
+			_inputBuffer = _prevLayer.TrainForward(netInput);
+
+			// TODO 検証
+			CollectSignBit(_inputBuffer, (int *)_outputBuffer, PADDED_IN_BLOCKS);
+
 			return _outputBuffer;
 		}
 
@@ -70,14 +76,14 @@ namespace bitnet
 
 			for (int b = 0; b < BATCH_SIZE; b++)
 			{
-				const int batchShiftIn = b * COMPRESS_IN_DIM;
+				const int batchShiftIn = b * PADDED_IN_BLOCKS;
 				const int batchShiftOut = b * PADDED_OUT_BLOCKS;
 				for (int i_in = 0; i_in < COMPRESS_IN_DIM; i_in++)
 				{
 					// TODO ビット並列化
-					const double x = _inputBatchBuffer[batchShiftIn + i_in];
-					const double htanh = std::max(-1.0, std::min(1.0, x));
-					const double probPositive = (htanh + 1.0) / 2.0;
+					const int8_t x = _inputBatchBuffer[batchShiftIn + i_in];
+					const int8_t htanh = std::max(static_cast<int8_t>(-1), std::min(static_cast<int8_t>(1), x));
+					const double probPositive = (htanh + 1) / 2.0;
 					const double rand = Random::GetReal01();
 					const BitBlock isPositive = (rand < probPositive) ? 1 : 0;
 
@@ -98,7 +104,7 @@ namespace bitnet
 		{
 			for (int b = 0; b < BATCH_SIZE; b++)
 			{
-				const int batchShiftIn = b * COMPRESS_IN_DIM;
+				const int batchShiftIn = b * PADDED_IN_BLOCKS;
 				const int batchShiftOut = b * COMPRESS_OUT_DIM;
 				for (int i = 0; i < COMPRESS_OUT_DIM; i++)
 				{
