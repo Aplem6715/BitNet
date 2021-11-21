@@ -7,14 +7,14 @@
 namespace bitnet
 {
     using IInput = IntInputLayer<2>;
-    using IHidden1 = IntSignActivation<IntDenseLayer<IInput, 512>>;
-    using IHidden2 = IntSignActivation<IntDenseLayer<IHidden1, 256>>;
+    using IHidden1 = IntSignActivation<IntDenseLayer<IInput, 256>>;
+    using IHidden2 = IntSignActivation<IntDenseLayer<IHidden1, 32>>;
     using IOutput = IntDenseLayer<IHidden2, 1>;
     using IntNetwork = IOutput;
 
     using BInput = BitInputLayer<2>;
-    using BHidden1 = BitSignActivation<BitDenseLayer<BInput, 512>>;
-    using BHidden2 = BitSignActivation<BitDenseLayer<BHidden1, 256>>;
+    using BHidden1 = BitSignActivation<BitDenseLayer<BInput, 256>>;
+    using BHidden2 = BitSignActivation<BitDenseLayer<BHidden1, 32>>;
     using BOutput = BitDenseLayer<BHidden2, 1, true>;
     using BitNetwork = BOutput;
 

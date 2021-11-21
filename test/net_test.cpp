@@ -9,7 +9,7 @@ TEST(BitNet, TrainSameCheck_Bit_Int)
 {
     using namespace bitnet;
     constexpr int iterNum = 10;
-    constexpr int trainNum = 1000;
+    constexpr int trainNum = 500;
     constexpr int testNum = 1000;
     constexpr int testIter = 500;
 
