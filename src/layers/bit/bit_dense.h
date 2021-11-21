@@ -81,7 +81,7 @@ namespace bitnet
 				// パディング分も含めて±1積和演算
 				if (USE_AVX_MADD)
 				{
-					pop = MaddPopcnt(input, _weight[i_out], PADDED_IN_BITS);
+					pop = MaddPopcnt2(input, _weight[i_out], PADDED_IN_BITS);
 				}
 				else
 				{
@@ -155,7 +155,7 @@ namespace bitnet
 					// パディング分も含めて±1積和演算
 					if (USE_AVX_MADD)
 					{
-						pop = MaddPopcnt(&_inputBatchBuffer[batchShiftInBlock], _weight[i_out], PADDED_IN_BITS);
+						pop = MaddPopcnt2(&_inputBatchBuffer[batchShiftInBlock], _weight[i_out], PADDED_IN_BITS);
 					}
 					else
 					{
