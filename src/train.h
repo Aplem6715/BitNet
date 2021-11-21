@@ -2,6 +2,7 @@
 #define TRAIN_H_
 
 #include "layers/layers.h"
+#include <time.h>
 
 namespace bitnet
 {
@@ -21,6 +22,6 @@ namespace bitnet
     void Train(NetType &net, int nbTrain, double scale, bool shouldBitInput);
 
     template <typename NetType>
-    void Test(NetType &net, int nbTest, double scale, bool shouldBitInput, bool isSilent, double *diffOut);
+    clock_t Test(NetType &net, int nbTest, double scale, bool shouldBitInput, bool isSilent, double *diffOut);
 }
 #endif

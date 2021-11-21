@@ -37,7 +37,7 @@ namespace bitnet
 		static constexpr int PADDED_OUT_BITS = AddPaddingToBitSize(COMPRESS_OUT_BITS);
 		static constexpr int PADDED_OUT_BLOCKS = BitToBlockCount(PADDED_OUT_BITS);
 		// 入力次元数
-		static constexpr int COMPRESS_IN_DIM = COMPRESS_OUT_DIM;
+		static constexpr int COMPRESS_IN_DIM = PreviousLayer_t::COMPRESS_OUT_DIM;
 		static constexpr int PADDED_IN_BLOCKS = AddPaddingToBytes(COMPRESS_IN_DIM);
 
 	private:
@@ -48,16 +48,46 @@ namespace bitnet
 		// 出力バッファ（次の層が参照する
 		alignas(__m256i) BitBlock _outputBuffer[PADDED_OUT_BLOCKS] = {0};
 		alignas(__m256i) BitBlock _outputBatchBuffer[BATCH_SIZE * PADDED_OUT_BLOCKS] = {0};
-		int8_t *_inputBuffer;
 		int8_t *_inputBatchBuffer;
 
 	public:
 		const BitBlock *Forward(const BitBlock *netInput)
 		{
-			_inputBuffer = _prevLayer.Forward(netInput);
+			const int8_t *input = _prevLayer.Forward(netInput);
 
-			// TODO 検証
-			CollectSignBit(_inputBuffer, (int *)_outputBuffer, PADDED_IN_BLOCKS);
+			if (USE_AVX_SIGN)
+			{
+				// constexpr int blocks = PADDED_IN_BLOCKS / SIMD_BYTE_WIDTH;
+				// for (int b = 0; b < blocks; b++)
+				// {
+				// 	const int blockShift = b * SIMD_BYTE_WIDTH;
+				// 	vector32 x = _mm256_load_si256((vector32 *)(inputs + blockShift));
+
+				// 	// 要素が0のバイトの最上位ビットが1になるよう調整
+				// 	vector32 zero = _mm256_setzero_si256();
+				// 	x = _mm256_or_si256(x, _mm256_cmpeq_epi8(x, zero));
+
+				// 	_outputBuffer[b] = _mm256_movemask_epi8(~x);
+				// }
+				CollectSignBit(input, reinterpret_cast<int*>(_outputBuffer), PADDED_IN_BLOCKS);
+			}
+			else
+			{
+				for (int i_in = 0; i_in < COMPRESS_IN_DIM; i_in++)
+				{
+					const int8_t x = input[i_in];
+					const BitBlock isPositive = (x > 0) ? 1 : 0;
+
+					const int blockIdx = GetBlockIndex(i_in);
+					const int bitShift = GetBitIndexInBlock(i_in);
+					const BitBlock block = _outputBuffer[blockIdx];
+					const BitBlock mask = ~(1 << bitShift);
+					const BitBlock newBit = isPositive << bitShift;
+					const BitBlock result = (block & mask) | newBit;
+
+					_outputBuffer[blockIdx] = result;
+				}
+			}
 
 			return _outputBuffer;
 		}

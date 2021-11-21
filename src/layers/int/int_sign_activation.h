@@ -24,7 +24,6 @@ namespace bitnet
 	private:
 		// 前の層
 		PreviousLayer_t _prevLayer;
-		int32_t *_inputBuffer;
 		// 前の層に伝播する勾配
 		double _gradsToPrev[BATCH_SIZE * COMPRESS_IN_DIM];
 		// 出力バッファ（次の層が参照する
@@ -35,13 +34,11 @@ namespace bitnet
 	public:
 		const IntBitType *Forward(const int8_t *netInput)
 		{
-			_inputBuffer = _prevLayer.Forward(netInput);
+			const int32_t* input = _prevLayer.Forward(netInput);
 			for (int i_out = 0; i_out < COMPRESS_OUT_DIM; i_out++)
 			{
-				int32_t x = _inputBuffer[i_out];
-				const int32_t htanh = std::max(static_cast<int32_t>(-1), std::min(static_cast<int32_t>(1), x));
-				double probPositive = (htanh + 1.0) / 2.0;
-				bool isPositive = Random::GetReal01() < probPositive;
+				int32_t x = input[i_out];
+				bool isPositive = x > 0;
 
 				_outputBuffer[i_out] = isPositive ? 1 : -1;
 			}

@@ -47,7 +47,7 @@ namespace bitnet
 
     inline int GetBitIndexInBlock(int bitIndex)
     {
-        return BYTE_BIT_WIDTH - (bitIndex % BYTE_BIT_WIDTH) - 1;
+        return bitIndex % BYTE_BIT_WIDTH;
     }
 
     alignas(__m256i) static uint64_t TempMaddBuffer[4];
@@ -95,8 +95,13 @@ namespace bitnet
         for (int b = 0; b < blocks; b++)
         {
             const int blockShift = b * SIMD_BYTE_WIDTH;
-            vector32 x = _mm256_load_si256((vector32 *)&(inputs[blockShift]));
-            dst[b] = _mm256_movemask_epi8(x);
+            vector32 x = _mm256_load_si256((vector32 *)(inputs + blockShift));
+
+            // 要素が0のバイトの最上位ビットが1になるよう調整
+            vector32 zero = _mm256_setzero_si256();
+            x = _mm256_or_si256(x, _mm256_cmpeq_epi8(x, zero));
+
+            dst[b] = _mm256_movemask_epi8(~x);
         }
     }
 }

@@ -22,6 +22,21 @@ namespace bitnet
     }
 
     template <typename NetType>
+    const int32_t *Forward(NetType &net, const int8_t *input, const uint8_t *binInput);
+
+    template <>
+    const int32_t *Forward<IntNetwork>(IntNetwork &net, const int8_t *input, const uint8_t *binInput)
+    {
+        return net.Forward(input);
+    }
+
+    template <>
+    const int32_t *Forward<BitNetwork>(BitNetwork &net, const int8_t *input, const uint8_t *binInput)
+    {
+        return net.Forward(binInput);
+    }
+
+    template <typename NetType>
     void Train(NetType &net, int nbTrain, double scale, bool shouldBitInput)
     {
         constexpr int dataSize = 2;
@@ -57,13 +72,14 @@ namespace bitnet
     template void Train<BitNetwork>(BitNetwork &net, int nbTrain, double scale, bool shouldBitInput);
 
     template <typename NetType>
-    void Test(NetType &net, int nbTest, double scale, bool shouldBitInput, bool isSilent, double *diffOut)
+    clock_t Test(NetType &net, int nbTest, double scale, bool shouldBitInput, bool isSilent, double *diffOut)
     {
         constexpr int dataSize = 2;
         constexpr int padded_blocks = BitToBlockCount(AddPaddingToBitSize(dataSize));
         int8_t inputData[BATCH_SIZE * 2];
         BitBlock binInput[BATCH_SIZE * padded_blocks];
         int8_t teacherData[BATCH_SIZE];
+        clock_t timer = 0;
         for (int i = 0; i < nbTest; i++)
         {
             util::MakeXORBatch(BATCH_SIZE, scale, inputData, teacherData);
@@ -73,14 +89,19 @@ namespace bitnet
                 util::BinarizeInputData(BATCH_SIZE, dataSize, inputData, binInput);
             }
 
-            const int32_t *pred = TrainForward<NetType>(net, inputData, binInput);
+            clock_t start = clock();
+            const int32_t *pred = Forward<NetType>(net, inputData, binInput);
+            clock_t stop = clock();
+            timer += stop - start;
+
             diffOut[i] = (double)teacherData[0] - pred[0];
             if (!isSilent)
             {
                 std::cout << (double)teacherData[0] << ":" << pred[0] << std::endl;
             }
         }
+        return timer;
     }
-    template void Test<IntNetwork>(IntNetwork &net, int nbTest, double scale, bool shouldBitInput, bool isSilent, double *diffOut);
-    template void Test<BitNetwork>(BitNetwork &net, int nbTest, double scale, bool shouldBitInput, bool isSilent, double *diffOut);
+    template clock_t Test<IntNetwork>(IntNetwork &net, int nbTest, double scale, bool shouldBitInput, bool isSilent, double *diffOut);
+    template clock_t Test<BitNetwork>(BitNetwork &net, int nbTest, double scale, bool shouldBitInput, bool isSilent, double *diffOut);
 }
