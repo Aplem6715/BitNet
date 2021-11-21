@@ -54,7 +54,7 @@ namespace bitnet
 	public:
 		const BitBlock *Forward(const BitBlock *netInput)
 		{
-			_inputBuffer = _prevLayer.TrainForward(netInput);
+			_inputBuffer = _prevLayer.Forward(netInput);
 
 			// TODO 検証
 			CollectSignBit(_inputBuffer, (int *)_outputBuffer, PADDED_IN_BLOCKS);
