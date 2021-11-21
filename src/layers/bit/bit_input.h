@@ -43,7 +43,11 @@ namespace bitnet
     public:
         const BitBlock *Forward(const BitBlock *netInput)
         {
-            // TODO
+            // バッファに入力を詰める
+            for (int i_out = 0; i_out < COMPRESS_OUT_BLOCKS; i_out++)
+            {
+                _outputBuffer[i_out] = netInput[i_out];
+            }
             return _outputBuffer;
         }
 

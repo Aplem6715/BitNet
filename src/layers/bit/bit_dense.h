@@ -49,7 +49,8 @@ namespace bitnet
 	private:
 		// 前の層
 		PreviousLayer_t _prevLayer;
-		// TODO 整数化
+		// 入力バッファへのポインタ
+		BitBlock *_inputBuffer;
 		// 出力バッファ（次の層が参照する
 		OutputType _outputBuffer[PADDED_OUT_BLOCKS] = {0};
 		// バイアス
@@ -68,13 +69,50 @@ namespace bitnet
 		// バッチ学習版出力バッファ（学習時はこちらのバッファを使用する
 		OutputType _outputBatchBuffer[BATCH_SIZE * PADDED_OUT_BLOCKS] = {0};
 		// 勾配計算用の入力バッファ（実態は前の層の出力バッファを参照するポインタ
-		alignas(__m256i) BitBlock *_inputBatchBuffer;
+		BitBlock *_inputBatchBuffer;
 #pragma endregion
 
 	public:
-		const double *Forward(const BitBlock *netInput)
+		const OutputType *Forward(const BitBlock *netInput)
 		{
-			// TODO
+			_inputBuffer = _prevLayer.Forward(netInput);
+
+			for (int i_out = 0; i_out < COMPRESS_OUT_DIM; i_out++)
+			{
+				int32_t pop;
+				// パディング分も含めて±1積和演算
+				if (USE_AVX_MADD)
+				{
+					pop = MaddPopcnt(_inputBuffer, _weight[i_out], PADDED_IN_BITS);
+				}
+				else
+				{
+					pop = 0;
+					for (int block = 0; block < PADDED_IN_BLOCKS; block++)
+					{
+						const BitBlock xnor = ~(_inputBuffer[block] ^ _weight[i_out][block]);
+						pop += __popcnt64(xnor);
+					}
+				}
+
+				// 1,-1の合計値に（[plus] - (bitWidth - [minus]) => 2x[1の数] - bitWidth)
+				const int32_t sum = 2 * (pop - PADDING_BITS) - COMPRESS_IN_DIM;
+				const int32_t result = sum + _bias[i_out];
+				if (isOutputLayer)
+				{
+					// 出力層ではパディングの必要がない
+					_outputBuffer[i_out] = static_cast<OutputType>(result);
+				}
+				else
+				{
+					// 算術シフトのコンパイラでのみ正常動作する
+					static_assert((((int32_t)0xffffffff >> 1) == 0xffffffff));
+					static_assert((((int32_t)0x00000001 >> 1) == 0x00000000));
+					// 次のsign層で符号ビットが分かればいい（32bitのMSBが8bitMSBに来るようにシフト）
+					_outputBuffer[i_out] = static_cast<OutputType>(result >> 24);
+				}
+			}
+
 			return _outputBuffer;
 		}
 
