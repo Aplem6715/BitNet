@@ -73,6 +73,14 @@ namespace bitnet
 #pragma endregion
 
 	public:
+		void Init()
+		{
+			memset(_outputBatchBuffer, 0, sizeof(OutputType) * BATCH_SIZE * PADDED_OUT_BLOCKS);
+			memset(_outputBuffer, 0, sizeof(OutputType) * PADDED_OUT_BLOCKS);
+			memset(_weight, 0, sizeof(BitWeight) * COMPRESS_OUT_DIM * PADDED_IN_BLOCKS);
+			_prevLayer.Init();
+		}
+
 		const OutputType *Forward(const BitBlock *netInput)
 		{
 			const BitBlock *input = _prevLayer.Forward(netInput);

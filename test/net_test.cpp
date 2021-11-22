@@ -9,12 +9,12 @@ TEST(BitNet, TrainSameCheck_Bit_Int)
 {
     using namespace bitnet;
     constexpr int iterNum = 10;
-    constexpr int trainNum = 500;
-    constexpr int testNum = 1000;
+    constexpr int trainNum = 5;
+    constexpr int testNum = 10;
     constexpr int testIter = 500;
 
     Random::Seed(42);
-    IntNetwork* intNet = new IntNetwork();
+    IntNetwork *intNet = reinterpret_cast<IntNetwork *>(_aligned_malloc(sizeof(IntNetwork), 32));
     intNet->ResetWeight();
 
     for (int i = 0; i < iterNum; i++)
@@ -32,7 +32,8 @@ TEST(BitNet, TrainSameCheck_Bit_Int)
     std::cout << "\n\n\n";
 
     Random::Seed(42);
-    BitNetwork *bitNet = new BitNetwork();
+    BitNetwork *bitNet = reinterpret_cast<BitNetwork *>(_aligned_malloc(sizeof(BitNetwork), 32));
+    bitNet->Init();
     bitNet->ResetWeight();
 
     for (int i = 0; i < iterNum; i++)

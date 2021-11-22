@@ -52,16 +52,24 @@ namespace bitnet
 		int8_t *_inputBatchBuffer;
 
 	public:
+		
+		void Init()
+		{
+			memset(_outputBuffer, 0, sizeof(BitBlock) * PADDED_OUT_BLOCKS);
+			memset(_outputBatchBuffer, 0, sizeof(BitBlock) * BATCH_SIZE * PADDED_OUT_BLOCKS);
+			_prevLayer.Init();
+		}
+
 		const BitBlock *Forward(const BitBlock *netInput)
 		{
 			const int8_t *input = _prevLayer.Forward(netInput);
 
 			if (USE_AVX_SIGN)
 			{
-				// constexpr int blocks = PADDED_IN_BLOCKS / SIMD_BYTE_WIDTH;
+				// constexpr int blocks = PADDED_IN_BLOCKS / NUM_BYTES_IN_REGISTER;
 				// for (int b = 0; b < blocks; b++)
 				// {
-				// 	const int blockShift = b * SIMD_BYTE_WIDTH;
+				// 	const int blockShift = b * NUM_BYTES_IN_REGISTER;
 				// 	vector32 x = _mm256_load_si256((vector32 *)(inputs + blockShift));
 
 				// 	// 要素が0のバイトの最上位ビットが1になるよう調整
