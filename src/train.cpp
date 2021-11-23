@@ -37,7 +37,7 @@ namespace bitnet
     }
 
     template <typename NetType>
-    void Train(NetType &net, int nbTrain, double scale, bool shouldBitInput)
+    clock_t Train(NetType &net, int nbTrain, double scale, bool shouldBitInput)
     {
         constexpr int dataSize = 2;
         constexpr int padded_blocks = BitToBlockCount(AddPaddingToBitSize(dataSize));
@@ -47,6 +47,7 @@ namespace bitnet
         GradientType diffs[BATCH_SIZE];
         double lr = 0.0001;
         double maeSum = 0;
+        clock_t timer = 0;
         for (int train = 0; train < nbTrain; train++)
         {
             util::MakeXORBatch(BATCH_SIZE, scale, inputData, teacherData);
@@ -62,14 +63,20 @@ namespace bitnet
             double mae;
             double mse = util::CalcSquaredError(BATCH_SIZE, 1, scale, lr, pred, teacherData, diffs, &mae);
 
-            net.TrainBackward(diffs);
+            clock_t start = clock();
+            if (mse != 0)
+            {
+                net.TrainBackward(diffs);
+            }
+            timer += clock() - start;
             // std::cout << *pred << std::endl;
             maeSum += mae;
         }
         std::cout << maeSum / scale / nbTrain << std::endl;
+        return timer;
     }
-    template void Train<IntNetwork>(IntNetwork &net, int nbTrain, double scale, bool shouldBitInput);
-    template void Train<BitNetwork>(BitNetwork &net, int nbTrain, double scale, bool shouldBitInput);
+    template clock_t Train<IntNetwork>(IntNetwork &net, int nbTrain, double scale, bool shouldBitInput);
+    template clock_t Train<BitNetwork>(BitNetwork &net, int nbTrain, double scale, bool shouldBitInput);
 
     template <typename NetType>
     clock_t Test(NetType &net, int nbTest, double scale, bool shouldBitInput, bool isSilent, float *diffOut)

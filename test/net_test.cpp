@@ -5,11 +5,12 @@
 #include "../src/train.h"
 #include <time.h>
 
-TEST(BitNet, TrainSameCheck_Bit_Int)
+// TEST(BitNet, TrainSameCheck_Bit_Int)
+int main()
 {
     using namespace bitnet;
     constexpr int iterNum = 10;
-    constexpr int trainNum = 5;
+    constexpr int trainNum = 1000;
     constexpr int testNum = 10;
     constexpr int testIter = 500;
 
@@ -17,9 +18,10 @@ TEST(BitNet, TrainSameCheck_Bit_Int)
     IntNetwork *intNet = reinterpret_cast<IntNetwork *>(_aligned_malloc(sizeof(IntNetwork), 32));
     intNet->ResetWeight();
 
+    clock_t intTrainDuration = 0;
     for (int i = 0; i < iterNum; i++)
     {
-        Train<IntNetwork>(*intNet, trainNum, 16, false);
+        intTrainDuration += Train<IntNetwork>(*intNet, trainNum, 16, false);
     }
     GradientType intDiffs[testNum];
     clock_t intDuration = 0;
@@ -36,10 +38,11 @@ TEST(BitNet, TrainSameCheck_Bit_Int)
     bitNet->Init();
     bitNet->ResetWeight();
 
+    clock_t bitTrainDuration = 0;
     for (int i = 0; i < iterNum; i++)
     {
         std::cout << i << "\r";
-        Train<BitNetwork>(*bitNet, trainNum, 16, true);
+        bitTrainDuration += Train<BitNetwork>(*bitNet, trainNum, 16, true);
     }
     GradientType bitDiffs[testNum];
     clock_t bitDuration = 0;
@@ -48,11 +51,16 @@ TEST(BitNet, TrainSameCheck_Bit_Int)
         bitDuration += bitnet::Test<BitNetwork>(*bitNet, testNum, 16, true, true, bitDiffs);
     }
 
-    std::cout << "int time: " << intDuration / (double)CLOCKS_PER_SEC << std::endl;
-    std::cout << "bit time: " << bitDuration / (double)CLOCKS_PER_SEC << std::endl;
+    std::cout << "int Train time: " << intTrainDuration / (double)CLOCKS_PER_SEC << std::endl;
+    std::cout << "bit Train time: " << bitTrainDuration / (double)CLOCKS_PER_SEC << std::endl
+              << std::endl;
 
-    for (int i = 0; i < testNum; i++)
-    {
-        EXPECT_EQ(intDiffs[i], bitDiffs[i]);
-    }
+    std::cout << "int prediction time: " << intDuration / (double)CLOCKS_PER_SEC << std::endl;
+    std::cout << "bit prediction time: " << bitDuration / (double)CLOCKS_PER_SEC << std::endl;
+
+    // for (int i = 0; i < testNum; i++)
+    // {
+    //     EXPECT_EQ(intDiffs[i], bitDiffs[i]);
+    // }
+    return 0;
 }

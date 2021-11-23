@@ -119,7 +119,7 @@ namespace bitnet
 				const int batchShiftOut = b * PADDED_OUT_BLOCKS;
 				for (int i_in = 0; i_in < COMPRESS_IN_DIM; i_in++)
 				{
-					// TODO ビット並列化
+					// TODO ビット並列化(プロファイルして遅かったら)
 					const int8_t x = _inputBatchBuffer[batchShiftIn + i_in];
 					const int8_t htanh = std::max(static_cast<int8_t>(-1), std::min(static_cast<int8_t>(1), x));
 					const double probPositive = (htanh + 1) / 2.0;

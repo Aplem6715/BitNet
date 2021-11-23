@@ -48,6 +48,8 @@ namespace bitnet
 
 	private:
 #pragma region Train
+		// 勾配法用の実数値重み
+		alignas(__m256) float _realWeight[COMPRESS_OUT_DIM][COMPRESS_IN_DIM] = {0};
 		// バッチ学習版出力バッファ（学習時はこちらのバッファを使用する
 		alignas(__m256i) OutputType _outputBatchBuffer[BATCH_SIZE * PADDED_OUT_BLOCKS] = {0};
 #pragma endregion
@@ -63,8 +65,6 @@ namespace bitnet
 #pragma region Train
 		// 前の層に伝播する勾配
 		GradientType _gradsToPrev[BATCH_SIZE * COMPRESS_IN_DIM] = {0};
-		// 勾配法用の実数値重み
-		double _realWeight[COMPRESS_OUT_DIM][COMPRESS_IN_DIM] = {0};
 		// 勾配法用の実数値バイアス
 		double _realBias[COMPRESS_OUT_DIM] = {0};
 		// TODO 整数化
@@ -203,26 +203,36 @@ namespace bitnet
 		void TrainBackward(const GradientType *nextGrad)
 		{
 			// 勾配更新
+			UpdateGrad(nextGrad);
+
+			UpdateWeights(nextGrad);
+
+			// 2値化
+			Binarize();
+
+			_prevLayer.TrainBackward(_gradsToPrev);
+		}
+
+		void UpdateGrad(const GradientType *nextGrad)
+		{
 			for (int b = 0; b < BATCH_SIZE; b++)
 			{
 				int batchShiftIn = b * COMPRESS_IN_DIM;
 				int batchShiftOut = b * COMPRESS_OUT_DIM;
 				for (int i_in = 0; i_in < COMPRESS_IN_DIM; i_in++)
 				{
-					const int blockIdx = GetBlockIndex(i_in);
-					const int bitShift = GetBitIndexInBlock(i_in);
 					GradientType sum = 0;
 					for (int i_out = 0; i_out < COMPRESS_OUT_DIM; i_out++)
 					{
-						const BitBlock bits = _weight[i_out][blockIdx];
-						const BitBlock w_bit = (bits >> bitShift) & 0b1;
-						const int weight = (w_bit == 1 ? 1 : -1);
-						sum += nextGrad[batchShiftOut + i_out] * weight;
+						sum += nextGrad[batchShiftOut + i_out] * sgn(_realWeight[i_out][i_in]);
 					}
 					_gradsToPrev[batchShiftIn + i_in] = sum;
 				}
 			}
+		}
 
+		void UpdateWeights(const GradientType *nextGrad)
+		{
 			for (int b = 0; b < BATCH_SIZE; b++)
 			{
 				const int batchShiftInBlock = b * PADDED_IN_BLOCKS;
@@ -230,38 +240,65 @@ namespace bitnet
 				// 重み調整
 				for (int i_out = 0; i_out < COMPRESS_OUT_DIM; i_out++)
 				{
-					_realBias[i_out] += nextGrad[batchShiftOut + i_out];
+					float grad = nextGrad[batchShiftOut + i_out];
+					if (grad == 0)
+					{
+						continue;
+					}
+
+					_realBias[i_out] += grad;
+					float *const realWeight = _realWeight[i_out];
+					// NegateAddFloats(_realWeight[i_out], grad, _inputBatchBuffer + batchShiftInBlock, COMPRESS_IN_DIM);
 					for (int i_in = 0; i_in < COMPRESS_IN_DIM; i_in++)
 					{
-						const int blockIdx = GetBlockIndex(i_in);
-						const int bitShift = GetBitIndexInBlock(i_in);
-						const BitBlock input = (BitBlock)(_inputBatchBuffer[batchShiftInBlock + blockIdx] >> bitShift) & 1;
-						const int8_t sign = (input == 0 ? -1 : 1);
-						_realWeight[i_out][i_in] += nextGrad[batchShiftOut + i_out] * sign;
+						int blockIdx = GetBlockIndex(i_in);
+						int bitShift = GetBitIndexInBlock(i_in);
+						if ((BitBlock)(_inputBatchBuffer[batchShiftInBlock + blockIdx] >> bitShift) & 1)
+						{
+							realWeight[i_in] += grad;
+						}
+						else
+						{
+							realWeight[i_in] -= grad;
+						}
 					}
 				}
 			}
+		}
 
-			// 2値化
+		void Binarize()
+		{
 			for (int i_out = 0; i_out < COMPRESS_OUT_DIM; i_out++)
 			{
 				_bias[i_out] = _realBias[i_out];
-				for (int i_in = 0; i_in < COMPRESS_IN_DIM; i_in++)
+				if (COMPRESS_IN_DIM % BYTE_BIT_WIDTH == 0)
 				{
-					// Clipping
-					const double tmp_w = std::max(-1.0, std::min(1.0, _realWeight[i_out][i_in]));
-					_realWeight[i_out][i_in] = tmp_w;
+					// float-8個分のMSBを読んで
+					int cursor = 0;
+					for (int i_in = 0; i_in < COMPRESS_IN_DIM; i_in += BYTE_BIT_WIDTH)
+					{
+						float8 packed = _mm256_load_ps(&(_realWeight[i_out][i_in]));
+						_weight[i_out][cursor] = ~_mm256_movemask_ps(packed);
+						++cursor;
+					}
+				}
+				else
+				{
+					for (int i_in = 0; i_in < COMPRESS_IN_DIM; i_in++)
+					{
+						// Clipping
+						const double tmp_w = std::max(-1.0, std::min(1.0, (double)_realWeight[i_out][i_in]));
+						_realWeight[i_out][i_in] = tmp_w;
 
-					const int blockIdx = GetBlockIndex(i_in);
-					const int bitShift = GetBitIndexInBlock(i_in);
-					const BitBlock block = _weight[i_out][blockIdx];
-					const BitBlock mask = ~(1 << bitShift);
-					const BitBlock newBit = ((uint8_t)(tmp_w > 0)) << bitShift;
-					_weight[i_out][blockIdx] = (block & mask) | newBit;
+						const int blockIdx = GetBlockIndex(i_in);
+						const int bitShift = GetBitIndexInBlock(i_in);
+						const BitBlock block = _weight[i_out][blockIdx];
+						const BitBlock mask = ~(1 << bitShift);
+						const BitBlock newBit = ((uint8_t)(tmp_w > 0)) << bitShift;
+						_weight[i_out][blockIdx] = (block & mask) | newBit;
+					}
 				}
 			}
-
-			_prevLayer.TrainBackward(_gradsToPrev);
 		}
 
 #pragma endregion
