@@ -107,6 +107,9 @@ namespace bitnet
 			fs.read(reinterpret_cast<char *>(_realBias), sizeof(double) * COMPRESS_OUT_DIM);
 			fs.read(reinterpret_cast<char *>(_realWeight), sizeof(float) * COMPRESS_OUT_DIM * COMPRESS_IN_DIM);
 
+			// ロードした重みをforward用に2値化して適用
+			Binarize();
+
 			_prevLayer.Load(fs);
 		}
 
@@ -177,6 +180,41 @@ namespace bitnet
 			}
 
 			_prevLayer.ResetWeight();
+		}
+
+		void Binarize()
+		{
+			for (int i_out = 0; i_out < COMPRESS_OUT_DIM; i_out++)
+			{
+				_bias[i_out] = _realBias[i_out];
+				if (COMPRESS_IN_DIM % BYTE_BIT_WIDTH == 0)
+				{
+					// float-8個分のMSBを読み8bitに詰めてweightにセット
+					int cursor = 0;
+					for (int i_in = 0; i_in < COMPRESS_IN_DIM; i_in += BYTE_BIT_WIDTH)
+					{
+						float8 packed = _mm256_load_ps(&(_realWeight[i_out][i_in]));
+						_weight[i_out][cursor] = ~_mm256_movemask_ps(packed);
+						++cursor;
+					}
+				}
+				else
+				{
+					for (int i_in = 0; i_in < COMPRESS_IN_DIM; i_in++)
+					{
+						// Clipping
+						const double tmp_w = std::max(-1.0, std::min(1.0, (double)_realWeight[i_out][i_in]));
+						_realWeight[i_out][i_in] = tmp_w;
+
+						const int blockIdx = GetBlockIndex(i_in);
+						const int bitShift = GetBitIndexInBlock(i_in);
+						const BitBlock block = _weight[i_out][blockIdx];
+						const BitBlock mask = ~(1 << bitShift);
+						const BitBlock newBit = ((uint8_t)(tmp_w > 0)) << bitShift;
+						_weight[i_out][blockIdx] = (block & mask) | newBit;
+					}
+				}
+			}
 		}
 
 #pragma region Train
@@ -290,41 +328,6 @@ namespace bitnet
 						{
 							realWeight[i_in] -= grad;
 						}
-					}
-				}
-			}
-		}
-
-		void Binarize()
-		{
-			for (int i_out = 0; i_out < COMPRESS_OUT_DIM; i_out++)
-			{
-				_bias[i_out] = _realBias[i_out];
-				if (COMPRESS_IN_DIM % BYTE_BIT_WIDTH == 0)
-				{
-					// float-8個分のMSBを読んで
-					int cursor = 0;
-					for (int i_in = 0; i_in < COMPRESS_IN_DIM; i_in += BYTE_BIT_WIDTH)
-					{
-						float8 packed = _mm256_load_ps(&(_realWeight[i_out][i_in]));
-						_weight[i_out][cursor] = ~_mm256_movemask_ps(packed);
-						++cursor;
-					}
-				}
-				else
-				{
-					for (int i_in = 0; i_in < COMPRESS_IN_DIM; i_in++)
-					{
-						// Clipping
-						const double tmp_w = std::max(-1.0, std::min(1.0, (double)_realWeight[i_out][i_in]));
-						_realWeight[i_out][i_in] = tmp_w;
-
-						const int blockIdx = GetBlockIndex(i_in);
-						const int bitShift = GetBitIndexInBlock(i_in);
-						const BitBlock block = _weight[i_out][blockIdx];
-						const BitBlock mask = ~(1 << bitShift);
-						const BitBlock newBit = ((uint8_t)(tmp_w > 0)) << bitShift;
-						_weight[i_out][blockIdx] = (block & mask) | newBit;
 					}
 				}
 			}

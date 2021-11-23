@@ -32,7 +32,7 @@ TEST(BitNet, TrainSameCheck_Bit_Int)
     constexpr int trainNum = 10;
     constexpr int testNum = 10;
     constexpr int testIter = 500;
-    float scale = 256;
+    float scale = 16;
 
     Random::Seed(42);
     IntNetwork *intNet = reinterpret_cast<IntNetwork *>(_aligned_malloc(sizeof(IntNetwork), 32));
@@ -41,7 +41,7 @@ TEST(BitNet, TrainSameCheck_Bit_Int)
     clock_t intTrainDuration = 0;
     for (int i = 0; i < iterNum; i++)
     {
-        intTrainDuration += Train<IntNetwork>(*intNet, trainNum, scale, false);
+        // intTrainDuration += Train<IntNetwork>(*intNet, trainNum, scale, false);
     }
 
     GradientType intDiffs[testNum];
@@ -64,11 +64,6 @@ TEST(BitNet, TrainSameCheck_Bit_Int)
     {
         std::cout << i << "\r";
         bitTrainDuration += Train<BitNetwork>(*bitNet, trainNum, scale, true);
-    }
-    std::ofstream ofs("./models/bit_model.bin");
-    if (ofs)
-    {
-        bitNet->Save(ofs);
     }
     GradientType bitDiffs[testNum];
     clock_t bitDuration = 0;
