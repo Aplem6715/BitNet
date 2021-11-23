@@ -5,18 +5,20 @@
 
 int main()
 {
+	using namespace bitnet;
+
 	// int_net::Network net;
-	bit_net::Network net;
+	BitNetwork net;
 	net.ResetWeight();
 
 	Random::Seed(42);
 	for (int i = 0; i < 100; i++)
 	{
 		// Train<int_net::Network>(net, 100, false);
-		train::Train<bit_net::Network>(net, 100, 16, true);
+		Train<BitNetwork>(net, 100, 16, true);
 	}
-	double diffs[10];
-	train::Test<bit_net::Network>(net, 10, 16, diffs);
+	double diffs[25];
+	Test<BitNetwork>(net, 25, 16, true, false, diffs);
 
 	return 0;
 }

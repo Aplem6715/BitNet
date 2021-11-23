@@ -7,6 +7,11 @@
             "label": "Build",
             "type": "shell",
             "command": "cmake --build ${workspaceFolder}/build --config Debug --target BitNet -j 10 --"
+        },
+        {
+            "label": "Build Test",
+            "type": "shell",
+            "command": "cmake --build ${workspaceFolder}/build --config Debug --target UnitTest -j 10 --"
         }
 	]
 }

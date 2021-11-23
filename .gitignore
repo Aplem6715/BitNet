@@ -1,2 +1,4 @@
 ﻿build/
+models/
 .vscode/launch.json
+*.out
