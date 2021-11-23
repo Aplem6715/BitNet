@@ -110,57 +110,14 @@ namespace bitnet
 
         inline vector32 BroadcastBitsToBytes32(int bits)
         {
-            const vector32 mask2 = _mm256_loadu_si256((vector32 *)mask2a);
-            const vector32 mask1 = _mm256_loadu_si256((vector32 *)mask1a);
+            static const vector32 mask2 = _mm256_load_si256((vector32 *)mask2a);
+            static const vector32 mask1 = _mm256_load_si256((vector32 *)mask1a);
 
-            const vector32 y = _mm256_set1_epi32(bits);
+            vector32 y = _mm256_set1_epi32(bits);
             vector32 z = _mm256_shuffle_epi8(y, mask1);
             z = _mm256_and_si256(z, mask2);
 
             return z;
-        }
-
-        // 参考：https://qiita.com/beru/items/fff00c19968685dada68
-        inline __m128 hsum128_ps(__m128 x)
-        {
-            // loDual = ( -, -, x1, x0 )
-            const __m128 loDual = x;
-            // hiDual = ( -, -, x3, x2 )
-            const __m128 hiDual = _mm_movehl_ps(x, x);
-            // sumDual = ( -, -, x1+x3, x0+x2 )
-            const __m128 sumDual = _mm_add_ps(loDual, hiDual);
-            // lo = ( -, -, -, x0+x2 )
-            const __m128 lo = sumDual;
-            // hi = ( -, -, -, x1+x3 )
-            const __m128 hi = _mm_shuffle_ps(sumDual, sumDual, 0x1);
-            // sum = ( -, -, -, x0+x1+x2+x3 )
-            const __m128 sum = _mm_add_ss(lo, hi);
-            return sum;
-        }
-
-        // 参考：https://qiita.com/beru/items/fff00c19968685dada68
-        inline float hsum4x256_ps(const __m256 &a,
-                                  const __m256 &b,
-                                  const __m256 &c,
-                                  const __m256 &d)
-        {
-            __m256 t0, t1, t2, t3;
-            __m256 tt0, tt1;
-            t0 = _mm256_unpacklo_ps(a, b); // b5,a5,b4,a4, b1,a1,b0,a0
-            t1 = _mm256_unpackhi_ps(a, b); // b7,a7,b6,a6, b3,a3,b2,a2
-            t2 = _mm256_unpacklo_ps(c, d); // d5,c5,d4,c4, d1,c1,d0,c0
-            t3 = _mm256_unpackhi_ps(c, d); // d7,c7,d6,c6, d3,c3,d2,c2
-
-            tt0 = _mm256_add_ps(t0, t1); // b57,a57,b46,a46, b13,a13,b02,a02
-            tt1 = _mm256_add_ps(t2, t3); // d57,c57,d46,c46, d13,c13,d02,c02
-
-            t0 = _mm256_shuffle_ps(tt0, tt1, _MM_SHUFFLE(1, 0, 1, 0)); // d46,c46,b46,a46, d02,c02,b02,a02
-            t1 = _mm256_shuffle_ps(tt0, tt1, _MM_SHUFFLE(3, 2, 3, 2)); // d57,c57,b57,a57, d13,c13,b13,a13
-
-            tt0 = _mm256_add_ps(t0, t1); // d4567,c4567,b4567,a4567, d0123,c0123,b0123,a0123
-            __m128 upper = _mm256_extractf128_ps(tt0, 1);
-
-            return _mm_cvtss_f32(hsum128_ps(_mm_add_ps(_mm256_castps256_ps128(tt0), upper)));
         }
 
         inline __m256 SetSignBit(__m256 &origin, vector32 &expandSigns)
@@ -180,7 +137,7 @@ namespace bitnet
             _mm256_store_ps(target, target8);
         }
 
-        inline __m256 NegateAddFloats(float *floats, float diff, const uint8_t *bits, const int len)
+        inline void NegateAddFloats(float *floats, float diff, const uint8_t *bits, const int len)
         {
             // SIMD演算ループ回数
             const int xBlocks = len / (NUM_FLOAT_IN_REGISTER * NUM_BYTES_IN_FLOATS);
@@ -195,7 +152,6 @@ namespace bitnet
             int intBlock;
             for (intBlock = 0; intBlock < xBlocks; intBlock++)
             {
-                // TODO チェック
                 const int floatShift = intBlock * NUM_BYTES_IN_FLOATS;
 
                 vector32 zeros32 = _mm256_setzero_si256();
@@ -210,24 +166,25 @@ namespace bitnet
                 vector32 expandSigns = _mm256_cvtepi8_epi32(low16);
                 float8 signedDiff = SetSignBit(diff8, expandSigns);
                 AddFloat8(f_cur, signedDiff);
+                f_cur += NUM_FLOAT_IN_REGISTER;
 
                 // signs8x4[1]
-                f_cur += NUM_FLOAT_IN_REGISTER;
                 expandSigns = _mm256_cvtepi8_epi32(_mm_srli_si128(low16, 8));
                 signedDiff = SetSignBit(diff8, expandSigns);
                 AddFloat8(f_cur, signedDiff);
+                f_cur += NUM_FLOAT_IN_REGISTER;
 
                 // signs8x4[2]
-                f_cur += NUM_FLOAT_IN_REGISTER;
                 expandSigns = _mm256_cvtepi8_epi32(high16);
                 signedDiff = SetSignBit(diff8, expandSigns);
                 AddFloat8(f_cur, signedDiff);
+                f_cur += NUM_FLOAT_IN_REGISTER;
 
                 // signs8x4[3]
-                f_cur += NUM_FLOAT_IN_REGISTER;
                 expandSigns = _mm256_cvtepi8_epi32(_mm_srli_si128(high16, 8));
                 signedDiff = SetSignBit(diff8, expandSigns);
                 AddFloat8(f_cur, signedDiff);
+                f_cur += NUM_FLOAT_IN_REGISTER;
 
                 ++bits32;
             }
@@ -249,6 +206,48 @@ namespace bitnet
             }
         }
 
+        // // 参考：https://qiita.com/beru/items/fff00c19968685dada68
+        // inline __m128 hsum128_ps(__m128 x)
+        // {
+        //     // loDual = ( -, -, x1, x0 )
+        //     const __m128 loDual = x;
+        //     // hiDual = ( -, -, x3, x2 )
+        //     const __m128 hiDual = _mm_movehl_ps(x, x);
+        //     // sumDual = ( -, -, x1+x3, x0+x2 )
+        //     const __m128 sumDual = _mm_add_ps(loDual, hiDual);
+        //     // lo = ( -, -, -, x0+x2 )
+        //     const __m128 lo = sumDual;
+        //     // hi = ( -, -, -, x1+x3 )
+        //     const __m128 hi = _mm_shuffle_ps(sumDual, sumDual, 0x1);
+        //     // sum = ( -, -, -, x0+x1+x2+x3 )
+        //     const __m128 sum = _mm_add_ss(lo, hi);
+        //     return sum;
+        // }
+
+        // // 参考：https://qiita.com/beru/items/fff00c19968685dada68
+        // inline float hsum4x256_ps(const __m256 &a,
+        //                           const __m256 &b,
+        //                           const __m256 &c,
+        //                           const __m256 &d)
+        // {
+        //     __m256 t0, t1, t2, t3;
+        //     __m256 tt0, tt1;
+        //     t0 = _mm256_unpacklo_ps(a, b); // b5,a5,b4,a4, b1,a1,b0,a0
+        //     t1 = _mm256_unpackhi_ps(a, b); // b7,a7,b6,a6, b3,a3,b2,a2
+        //     t2 = _mm256_unpacklo_ps(c, d); // d5,c5,d4,c4, d1,c1,d0,c0
+        //     t3 = _mm256_unpackhi_ps(c, d); // d7,c7,d6,c6, d3,c3,d2,c2
+
+        //     tt0 = _mm256_add_ps(t0, t1); // b57,a57,b46,a46, b13,a13,b02,a02
+        //     tt1 = _mm256_add_ps(t2, t3); // d57,c57,d46,c46, d13,c13,d02,c02
+
+        //     t0 = _mm256_shuffle_ps(tt0, tt1, _MM_SHUFFLE(1, 0, 1, 0)); // d46,c46,b46,a46, d02,c02,b02,a02
+        //     t1 = _mm256_shuffle_ps(tt0, tt1, _MM_SHUFFLE(3, 2, 3, 2)); // d57,c57,b57,a57, d13,c13,b13,a13
+
+        //     tt0 = _mm256_add_ps(t0, t1); // d4567,c4567,b4567,a4567, d0123,c0123,b0123,a0123
+        //     __m128 upper = _mm256_extractf128_ps(tt0, 1);
+
+        //     return _mm_cvtss_f32(hsum128_ps(_mm_add_ps(_mm256_castps256_ps128(tt0), upper)));
+        // }
         /**
          * @brief -1/1を表すビット列とfloat列の積を計算し総和を求める
          *
@@ -257,67 +256,67 @@ namespace bitnet
          * @param len float列の長さ
          * @return float 積和
          */
-        inline float MaddReal(const int *bits, const float *f_input, const int len)
-        {
-            // SIMD演算ループ回数
-            const int xBlocks = len / NUM_FLOAT_IN_REGISTER;
-            // 未アライン領域数　端数
-            const int xOver = len % NUM_FLOAT_IN_REGISTER;
+        // inline float MaddReal(const int *bits, const float *f_input, const int len)
+        // {
+        //     // SIMD演算ループ回数
+        //     const int xBlocks = len / NUM_FLOAT_IN_REGISTER;
+        //     // 未アライン領域数　端数
+        //     const int xOver = len % NUM_FLOAT_IN_REGISTER;
 
-            float sum = 0;
+        //     float sum = 0;
 
-            int intBlock;
-            for (intBlock = 0; intBlock < xBlocks; intBlock++)
-            {
-                const int intShift = intBlock * NUM_BYTES_IN_FLOATS;
+        //     int intBlock;
+        //     for (intBlock = 0; intBlock < xBlocks; intBlock++)
+        //     {
+        //         const int intShift = intBlock * NUM_BYTES_IN_FLOATS;
 
-                const __m256 msb_mask = _mm256_setzero_ps();
-                vector32 zeros32 = _mm256_setzero_si256();
-                vector32 signs32 = BroadcastBitsToBytes32(bits[intShift]);
-                // 0の位置が1になるマスク
-                signs32 = _mm256_cmpeq_epi64(zeros32, signs32);
-                vector16 low16 = _mm256_extracti128_si256(signs32, 0);
-                vector16 high16 = _mm256_extracti128_si256(signs32, 0);
+        //         const __m256 msb_mask = _mm256_setzero_ps();
+        //         vector32 zeros32 = _mm256_setzero_si256();
+        //         vector32 signs32 = BroadcastBitsToBytes32(bits[intShift]);
+        //         // 0の位置が1になるマスク
+        //         signs32 = _mm256_cmpeq_epi64(zeros32, signs32);
+        //         vector16 low16 = _mm256_extracti128_si256(signs32, 0);
+        //         vector16 high16 = _mm256_extracti128_si256(signs32, 0);
 
-                // signs8x4[0]
-                vector32 expandSigns = _mm256_cvtepu8_epi32(low16);
-                float8 maskedSigns = _mm256_and_ps(_mm256_cvtepi32_ps(expandSigns), msb_mask);
-                float8 x = _mm256_load_ps(f_input);
-                float8 mul0 = _mm256_xor_ps(x, maskedSigns);
+        //         // signs8x4[0]
+        //         vector32 expandSigns = _mm256_cvtepu8_epi32(low16);
+        //         float8 maskedSigns = _mm256_and_ps(_mm256_cvtepi32_ps(expandSigns), msb_mask);
+        //         float8 x = _mm256_load_ps(f_input);
+        //         float8 mul0 = _mm256_xor_ps(x, maskedSigns);
 
-                // signs8x4[1]
-                const int shift_f_register1 = NUM_FLOAT_IN_REGISTER;
-                expandSigns = _mm256_cvtepu8_epi32(_mm_srli_si128(low16, 8));
-                maskedSigns = _mm256_and_ps(_mm256_cvtepi32_ps(expandSigns), msb_mask);
-                x = _mm256_load_ps(&(f_input[shift_f_register1]));
-                float8 mul1 = _mm256_xor_ps(x, maskedSigns);
+        //         // signs8x4[1]
+        //         const int shift_f_register1 = NUM_FLOAT_IN_REGISTER;
+        //         expandSigns = _mm256_cvtepu8_epi32(_mm_srli_si128(low16, 8));
+        //         maskedSigns = _mm256_and_ps(_mm256_cvtepi32_ps(expandSigns), msb_mask);
+        //         x = _mm256_load_ps(&(f_input[shift_f_register1]));
+        //         float8 mul1 = _mm256_xor_ps(x, maskedSigns);
 
-                // signs8x4[2]
-                const int shift_f_register2 = NUM_FLOAT_IN_REGISTER * 2;
-                expandSigns = _mm256_cvtepu8_epi32(high16);
-                maskedSigns = _mm256_and_ps(_mm256_cvtepi32_ps(expandSigns), msb_mask);
-                x = _mm256_load_ps(&(f_input[shift_f_register2]));
-                float8 mul2 = _mm256_xor_ps(x, maskedSigns);
+        //         // signs8x4[2]
+        //         const int shift_f_register2 = NUM_FLOAT_IN_REGISTER * 2;
+        //         expandSigns = _mm256_cvtepu8_epi32(high16);
+        //         maskedSigns = _mm256_and_ps(_mm256_cvtepi32_ps(expandSigns), msb_mask);
+        //         x = _mm256_load_ps(&(f_input[shift_f_register2]));
+        //         float8 mul2 = _mm256_xor_ps(x, maskedSigns);
 
-                // signs8x4[3]
-                const int shift_f_register3 = NUM_FLOAT_IN_REGISTER * 3;
-                expandSigns = _mm256_cvtepu8_epi32(_mm_srli_si128(high16, 8));
-                maskedSigns = _mm256_and_ps(_mm256_cvtepi32_ps(expandSigns), msb_mask);
-                x = _mm256_load_ps(&(f_input[shift_f_register3]));
-                float8 mul3 = _mm256_xor_ps(x, maskedSigns);
+        //         // signs8x4[3]
+        //         const int shift_f_register3 = NUM_FLOAT_IN_REGISTER * 3;
+        //         expandSigns = _mm256_cvtepu8_epi32(_mm_srli_si128(high16, 8));
+        //         maskedSigns = _mm256_and_ps(_mm256_cvtepi32_ps(expandSigns), msb_mask);
+        //         x = _mm256_load_ps(&(f_input[shift_f_register3]));
+        //         float8 mul3 = _mm256_xor_ps(x, maskedSigns);
 
-                sum += hsum4x256_ps(mul0, mul1, mul2, mul3);
-            }
+        //         sum += hsum4x256_ps(mul0, mul1, mul2, mul3);
+        //     }
 
-            for (int i = 0; i < xOver; i++)
-            {
-                // const int bitShift = GetBitIndexInBlock(i);
-                // const BitBlock b = bits[intBlock * NUM_BYTES_IN_FLOATS + i];
-                // const BitBlock w_bit = (b >> bitShift) & 0b1;
-                // const int weight = (w_bit == 1 ? 1 : -1);
-                // sum += nextGrad[batchShiftOut + i_out] * weight;
-            }
-        }
+        //     for (int i = 0; i < xOver; i++)
+        //     {
+        //         // const int bitShift = GetBitIndexInBlock(i);
+        //         // const BitBlock b = bits[intBlock * NUM_BYTES_IN_FLOATS + i];
+        //         // const BitBlock w_bit = (b >> bitShift) & 0b1;
+        //         // const int weight = (w_bit == 1 ? 1 : -1);
+        //         // sum += nextGrad[batchShiftOut + i_out] * weight;
+        //     }
+        // }
 
     }
 

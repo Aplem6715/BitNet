@@ -248,20 +248,20 @@ namespace bitnet
 
 					_realBias[i_out] += grad;
 					float *const realWeight = _realWeight[i_out];
-					// NegateAddFloats(_realWeight[i_out], grad, _inputBatchBuffer + batchShiftInBlock, COMPRESS_IN_DIM);
-					for (int i_in = 0; i_in < COMPRESS_IN_DIM; i_in++)
-					{
-						int blockIdx = GetBlockIndex(i_in);
-						int bitShift = GetBitIndexInBlock(i_in);
-						if ((BitBlock)(_inputBatchBuffer[batchShiftInBlock + blockIdx] >> bitShift) & 1)
-						{
-							realWeight[i_in] += grad;
-						}
-						else
-						{
-							realWeight[i_in] -= grad;
-						}
-					}
+					NegateAddFloats(_realWeight[i_out], grad, &_inputBatchBuffer[batchShiftInBlock], COMPRESS_IN_DIM);
+					// for (int i_in = 0; i_in < COMPRESS_IN_DIM; i_in++)
+					// {
+					// 	int blockIdx = GetBlockIndex(i_in);
+					// 	int bitShift = GetBitIndexInBlock(i_in);
+					// 	if ((_inputBatchBuffer[batchShiftInBlock + blockIdx] >> bitShift) & 1)
+					// 	{
+					// 		realWeight[i_in] += grad;
+					// 	}
+					// 	else
+					// 	{
+					// 		realWeight[i_in] -= grad;
+					// 	}
+					// }
 				}
 			}
 		}
