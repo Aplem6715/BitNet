@@ -4,6 +4,7 @@
 #include "../src/net_common.h"
 #include "../src/train.h"
 #include <time.h>
+#include <fstream>
 
 // 256-256 SIMD grad
 // int Train time: 88.557
@@ -28,9 +29,9 @@ TEST(BitNet, TrainSameCheck_Bit_Int)
 {
     using namespace bitnet;
     constexpr int iterNum = 10;
-    constexpr int trainNum = 1000;
+    constexpr int trainNum = 10;
     constexpr int testNum = 10;
-    constexpr int testIter = 50000;
+    constexpr int testIter = 500;
     float scale = 256;
 
     Random::Seed(42);
@@ -42,6 +43,7 @@ TEST(BitNet, TrainSameCheck_Bit_Int)
     {
         intTrainDuration += Train<IntNetwork>(*intNet, trainNum, scale, false);
     }
+
     GradientType intDiffs[testNum];
     clock_t intDuration = 0;
     for (int i = 0; i < testIter; i++)
@@ -62,6 +64,11 @@ TEST(BitNet, TrainSameCheck_Bit_Int)
     {
         std::cout << i << "\r";
         bitTrainDuration += Train<BitNetwork>(*bitNet, trainNum, scale, true);
+    }
+    std::ofstream ofs("./models/bit_model.bin");
+    if (ofs)
+    {
+        bitNet->Save(ofs);
     }
     GradientType bitDiffs[testNum];
     clock_t bitDuration = 0;

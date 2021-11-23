@@ -43,8 +43,8 @@ namespace bitnet
 
 	private:
 		// 出力バッファ（次の層が参照する
-		alignas(__m256i) BitBlock _outputBuffer[PADDED_OUT_BLOCKS] = {0};
-		alignas(__m256i) BitBlock _outputBatchBuffer[BATCH_SIZE * PADDED_OUT_BLOCKS] = {0};
+		alignas(32) BitBlock _outputBuffer[PADDED_OUT_BLOCKS] = {0};
+		alignas(32) BitBlock _outputBatchBuffer[BATCH_SIZE * PADDED_OUT_BLOCKS] = {0};
 		// 前の層
 		PreviousLayer_t _prevLayer;
 		// 前の層に伝播する勾配
@@ -52,13 +52,15 @@ namespace bitnet
 		int8_t *_inputBatchBuffer;
 
 	public:
-		
 		void Init()
 		{
 			memset(_outputBuffer, 0, sizeof(BitBlock) * PADDED_OUT_BLOCKS);
 			memset(_outputBatchBuffer, 0, sizeof(BitBlock) * BATCH_SIZE * PADDED_OUT_BLOCKS);
 			_prevLayer.Init();
 		}
+
+		void Save(std::ofstream &fs) { _prevLayer.Save(fs); }
+		void Load(std::ifstream &fs) { _prevLayer.Load(fs); }
 
 		const BitBlock *Forward(const BitBlock *netInput)
 		{

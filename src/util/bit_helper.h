@@ -86,125 +86,122 @@ namespace bitnet
 
     namespace
     {
-        static const uint8_t mask1a[32] = {
-            0x00, 0x00, 0x00, 0x00, //
-            0x00, 0x00, 0x00, 0x00, //
-            0x01, 0x01, 0x01, 0x01, //
-            0x01, 0x01, 0x01, 0x01, //
-            0x02, 0x02, 0x02, 0x02, //
-            0x02, 0x02, 0x02, 0x02, //
-            0x03, 0x03, 0x03, 0x03, //
-            0x03, 0x03, 0x03, 0x03  //
-        };
+        // 遅い上にSegment faultするから廃止
+        // static const uint8_t mask1a[32] = {
+        //     0x00, 0x00, 0x00, 0x00, //
+        //     0x00, 0x00, 0x00, 0x00, //
+        //     0x01, 0x01, 0x01, 0x01, //
+        //     0x01, 0x01, 0x01, 0x01, //
+        //     0x02, 0x02, 0x02, 0x02, //
+        //     0x02, 0x02, 0x02, 0x02, //
+        //     0x03, 0x03, 0x03, 0x03, //
+        //     0x03, 0x03, 0x03, 0x03  //
+        // };
 
-        static const uint8_t mask2a[32] = {
-            0x01, 0x02, 0x04, 0x08, //
-            0x10, 0x20, 0x40, 0x80, //
-            0x01, 0x02, 0x04, 0x08, //
-            0x10, 0x20, 0x40, 0x80, //
-            0x01, 0x02, 0x04, 0x08, //
-            0x10, 0x20, 0x40, 0x80, //
-            0x01, 0x02, 0x04, 0x08, //
-            0x10, 0x20, 0x40, 0x80, //
-        };
+        // static const uint8_t mask2a[32] = {
+        //     0x01, 0x02, 0x04, 0x08, //
+        //     0x10, 0x20, 0x40, 0x80, //
+        //     0x01, 0x02, 0x04, 0x08, //
+        //     0x10, 0x20, 0x40, 0x80, //
+        //     0x01, 0x02, 0x04, 0x08, //
+        //     0x10, 0x20, 0x40, 0x80, //
+        //     0x01, 0x02, 0x04, 0x08, //
+        //     0x10, 0x20, 0x40, 0x80, //
+        // };
 
-        inline vector32 BroadcastBitsToBytes32(int bits)
-        {
-            static const vector32 mask2 = _mm256_load_si256((vector32 *)mask2a);
-            static const vector32 mask1 = _mm256_load_si256((vector32 *)mask1a);
+        // inline void BroadcastBitsToBytes32(int bits, vector32 *target)
+        // {
+        //     vector32 mask2 = _mm256_load_si256((vector32 *)mask2a);
+        //     vector32 mask1 = _mm256_load_si256((vector32 *)mask1a);
 
-            vector32 y = _mm256_set1_epi32(bits);
-            vector32 z = _mm256_shuffle_epi8(y, mask1);
-            z = _mm256_and_si256(z, mask2);
+        //     vector32 y = _mm256_set1_epi32(bits);
+        //     vector32 z = _mm256_shuffle_epi8(y, mask1);
+        //     *target = _mm256_and_si256(z, mask2);
+        // }
 
-            return z;
-        }
+        // inline void SetSignBit(const __m256 &origin, const vector32 &expandSigns, float8 *result)
+        // {
+        //     __m256 msb_mask = _mm256_set1_ps(-0.0);
 
-        inline __m256 SetSignBit(__m256 &origin, vector32 &expandSigns)
-        {
-            const __m256 msb_mask = _mm256_set1_ps(-0.0);
+        //     float8 cvt = _mm256_cvtepi32_ps(expandSigns);
+        //     float8 maskedSigns = _mm256_and_ps(cvt, msb_mask);
+        //     *result = _mm256_xor_ps(origin, maskedSigns);
+        // }
 
-            float8 cvt = _mm256_cvtepi32_ps(expandSigns);
-            float8 maskedSigns = _mm256_and_ps(cvt, msb_mask);
-            float8 res = _mm256_xor_ps(origin, maskedSigns);
-            return res;
-        }
+        // inline void AddFloat8(float *target, float8 addition)
+        // {
+        //     float8 target8 = _mm256_load_ps(target);
+        //     target8 = _mm256_add_ps(target8, addition);
+        //     _mm256_store_ps(target, target8);
+        // }
 
-        inline void AddFloat8(float *target, float8 addition)
-        {
-            float8 target8 = _mm256_load_ps(target);
-            target8 = _mm256_add_ps(target8, addition);
-            _mm256_store_ps(target, target8);
-        }
+        // inline void NegateAddFloats(float *floats, float diff, const uint8_t *bits, const int len)
+        // {
+        //     // SIMD演算ループ回数
+        //     const int xBlocks = len / (NUM_FLOAT_IN_REGISTER * NUM_BYTES_IN_FLOATS);
+        //     // 未アライン領域数　端数
+        //     const int xOver = len % (NUM_FLOAT_IN_REGISTER * NUM_BYTES_IN_FLOATS);
 
-        inline void NegateAddFloats(float *floats, float diff, const uint8_t *bits, const int len)
-        {
-            // SIMD演算ループ回数
-            const int xBlocks = len / (NUM_FLOAT_IN_REGISTER * NUM_BYTES_IN_FLOATS);
-            // 未アライン領域数　端数
-            const int xOver = len % (NUM_FLOAT_IN_REGISTER * NUM_BYTES_IN_FLOATS);
-            const __m256 msb_mask = _mm256_setzero_ps();
+        //     const int *bits32 = reinterpret_cast<const int *>(bits);
+        //     float *f_cur = floats;
+        //     float8 diff8 = _mm256_broadcast_ss(&diff);
 
-            const int *bits32 = reinterpret_cast<const int *>(bits);
-            float *f_cur = floats;
-            float8 diff8 = _mm256_broadcast_ss(&diff);
+        //     int intBlock;
+        //     for (intBlock = 0; intBlock < xBlocks; intBlock++)
+        //     {
+        //         vector32 zeros32 = _mm256_setzero_si256();
+        //         vector32 signs32;
+        //         BroadcastBitsToBytes32(*bits32, &signs32);
 
-            int intBlock;
-            for (intBlock = 0; intBlock < xBlocks; intBlock++)
-            {
-                const int floatShift = intBlock * NUM_BYTES_IN_FLOATS;
+        //         // 0の位置が1になるマスク
+        //         signs32 = _mm256_cmpeq_epi8(zeros32, signs32);
+        //         vector16 low16 = _mm256_extracti128_si256(signs32, 0);
+        //         vector16 high16 = _mm256_extracti128_si256(signs32, 1);
 
-                vector32 zeros32 = _mm256_setzero_si256();
-                vector32 signs32 = BroadcastBitsToBytes32(*bits32);
+        //         // signs8x4[0]
+        //         float8 signedDiff;
+        //         vector32 expandSigns = _mm256_cvtepi8_epi32(low16);
+        //         SetSignBit(diff8, expandSigns, &signedDiff);
+        //         AddFloat8(f_cur, signedDiff);
+        //         f_cur += NUM_FLOAT_IN_REGISTER;
 
-                // 0の位置が1になるマスク
-                signs32 = _mm256_cmpeq_epi8(zeros32, signs32);
-                vector16 low16 = _mm256_extracti128_si256(signs32, 0);
-                vector16 high16 = _mm256_extracti128_si256(signs32, 1);
+        //         // signs8x4[1]
+        //         expandSigns = _mm256_cvtepi8_epi32(_mm_srli_si128(low16, 8));
+        //         SetSignBit(diff8, expandSigns, &signedDiff);
+        //         AddFloat8(f_cur, signedDiff);
+        //         f_cur += NUM_FLOAT_IN_REGISTER;
 
-                // signs8x4[0]
-                vector32 expandSigns = _mm256_cvtepi8_epi32(low16);
-                float8 signedDiff = SetSignBit(diff8, expandSigns);
-                AddFloat8(f_cur, signedDiff);
-                f_cur += NUM_FLOAT_IN_REGISTER;
+        //         // signs8x4[2]
+        //         expandSigns = _mm256_cvtepi8_epi32(high16);
+        //         SetSignBit(diff8, expandSigns, &signedDiff);
+        //         AddFloat8(f_cur, signedDiff);
+        //         f_cur += NUM_FLOAT_IN_REGISTER;
 
-                // signs8x4[1]
-                expandSigns = _mm256_cvtepi8_epi32(_mm_srli_si128(low16, 8));
-                signedDiff = SetSignBit(diff8, expandSigns);
-                AddFloat8(f_cur, signedDiff);
-                f_cur += NUM_FLOAT_IN_REGISTER;
+        //         // signs8x4[3]
+        //         expandSigns = _mm256_cvtepi8_epi32(_mm_srli_si128(high16, 8));
+        //         SetSignBit(diff8, expandSigns, &signedDiff);
+        //         AddFloat8(f_cur, signedDiff);
+        //         f_cur += NUM_FLOAT_IN_REGISTER;
 
-                // signs8x4[2]
-                expandSigns = _mm256_cvtepi8_epi32(high16);
-                signedDiff = SetSignBit(diff8, expandSigns);
-                AddFloat8(f_cur, signedDiff);
-                f_cur += NUM_FLOAT_IN_REGISTER;
+        //         ++bits32;
+        //     }
 
-                // signs8x4[3]
-                expandSigns = _mm256_cvtepi8_epi32(_mm_srli_si128(high16, 8));
-                signedDiff = SetSignBit(diff8, expandSigns);
-                AddFloat8(f_cur, signedDiff);
-                f_cur += NUM_FLOAT_IN_REGISTER;
-
-                ++bits32;
-            }
-
-            int overStarts = intBlock * (INT32_BIT_WIDTH / BYTE_BIT_WIDTH);
-            for (int i = 0; i < xOver; i++)
-            {
-                int blockIdx = GetBlockIndex(overStarts + i);
-                int bitShift = GetBitIndexInBlock(overStarts + i);
-                if ((bits[blockIdx] >> bitShift) & 1)
-                {
-                    *f_cur += diff;
-                }
-                else
-                {
-                    *f_cur -= diff;
-                }
-                ++f_cur;
-            }
-        }
+        //     int overStarts = intBlock * (INT32_BIT_WIDTH / BYTE_BIT_WIDTH);
+        //     for (int i = 0; i < xOver; i++)
+        //     {
+        //         int blockIdx = GetBlockIndex(overStarts + i);
+        //         int bitShift = GetBitIndexInBlock(overStarts + i);
+        //         if ((bits[blockIdx] >> bitShift) & 1)
+        //         {
+        //             *f_cur += diff;
+        //         }
+        //         else
+        //         {
+        //             *f_cur -= diff;
+        //         }
+        //         ++f_cur;
+        //     }
+        // }
 
         // // 参考：https://qiita.com/beru/items/fff00c19968685dada68
         // inline __m128 hsum128_ps(__m128 x)

@@ -18,6 +18,9 @@
 
 #include <type_traits>
 #include <cmath>
+#include <fstream>
+#include <stdexcept>
+#include <string>
 #include "../../util/random_util.h"
 #include "../../net_common.h"
 #include "../../util/bit_helper.h"
@@ -49,14 +52,14 @@ namespace bitnet
 	private:
 #pragma region Train
 		// 勾配法用の実数値重み
-		alignas(__m256) float _realWeight[COMPRESS_OUT_DIM][COMPRESS_IN_DIM] = {0};
+		alignas(32) float _realWeight[COMPRESS_OUT_DIM][COMPRESS_IN_DIM] = {0};
 		// バッチ学習版出力バッファ（学習時はこちらのバッファを使用する
-		alignas(__m256i) OutputType _outputBatchBuffer[BATCH_SIZE * PADDED_OUT_BLOCKS] = {0};
+		alignas(32) OutputType _outputBatchBuffer[BATCH_SIZE * PADDED_OUT_BLOCKS] = {0};
 #pragma endregion
 		// 出力バッファ（次の層が参照する
-		alignas(__m256i) OutputType _outputBuffer[PADDED_OUT_BLOCKS] = {0};
+		alignas(32) OutputType _outputBuffer[PADDED_OUT_BLOCKS] = {0};
 		// 2値重み(-1 or 1)
-		alignas(__m256i) BitWeight _weight[COMPRESS_OUT_DIM][PADDED_IN_BLOCKS] = {0};
+		alignas(32) BitWeight _weight[COMPRESS_OUT_DIM][PADDED_IN_BLOCKS] = {0};
 		// 前の層
 		PreviousLayer_t _prevLayer;
 		// バイアス
@@ -79,6 +82,32 @@ namespace bitnet
 			memset(_outputBuffer, 0, sizeof(OutputType) * PADDED_OUT_BLOCKS);
 			memset(_weight, 0, sizeof(BitWeight) * COMPRESS_OUT_DIM * PADDED_IN_BLOCKS);
 			_prevLayer.Init();
+		}
+
+		void Save(std::ofstream &fs)
+		{
+			int dim = COMPRESS_OUT_DIM;
+			fs.write(reinterpret_cast<char *>(&dim), sizeof(int));
+			fs.write(reinterpret_cast<char *>(_realBias), sizeof(double) * COMPRESS_OUT_DIM);
+			fs.write(reinterpret_cast<char *>(_realWeight), sizeof(float) * COMPRESS_OUT_DIM * COMPRESS_IN_DIM);
+
+			_prevLayer.Save(fs);
+		}
+
+		void Load(std::ifstream &fs)
+		{
+			int dim;
+			fs.read(reinterpret_cast<char *>(&dim), sizeof(int));
+
+			if (dim != COMPRESS_OUT_DIM)
+			{
+				throw std::runtime_error("Invalid Model   code dim:" + std::to_string(COMPRESS_OUT_DIM) + "load dim:" + std::to_string(dim));
+			}
+
+			fs.read(reinterpret_cast<char *>(_realBias), sizeof(double) * COMPRESS_OUT_DIM);
+			fs.read(reinterpret_cast<char *>(_realWeight), sizeof(float) * COMPRESS_OUT_DIM * COMPRESS_IN_DIM);
+
+			_prevLayer.Load(fs);
 		}
 
 		const OutputType *Forward(const BitBlock *netInput)
@@ -247,21 +276,21 @@ namespace bitnet
 					}
 
 					_realBias[i_out] += grad;
+					// NegateAddFloats(_realWeight[i_out], grad, &_inputBatchBuffer[batchShiftInBlock], COMPRESS_IN_DIM);
 					float *const realWeight = _realWeight[i_out];
-					NegateAddFloats(_realWeight[i_out], grad, &_inputBatchBuffer[batchShiftInBlock], COMPRESS_IN_DIM);
-					// for (int i_in = 0; i_in < COMPRESS_IN_DIM; i_in++)
-					// {
-					// 	int blockIdx = GetBlockIndex(i_in);
-					// 	int bitShift = GetBitIndexInBlock(i_in);
-					// 	if ((_inputBatchBuffer[batchShiftInBlock + blockIdx] >> bitShift) & 1)
-					// 	{
-					// 		realWeight[i_in] += grad;
-					// 	}
-					// 	else
-					// 	{
-					// 		realWeight[i_in] -= grad;
-					// 	}
-					// }
+					for (int i_in = 0; i_in < COMPRESS_IN_DIM; i_in++)
+					{
+						int blockIdx = GetBlockIndex(i_in);
+						int bitShift = GetBitIndexInBlock(i_in);
+						if ((_inputBatchBuffer[batchShiftInBlock + blockIdx] >> bitShift) & 1)
+						{
+							realWeight[i_in] += grad;
+						}
+						else
+						{
+							realWeight[i_in] -= grad;
+						}
+					}
 				}
 			}
 		}

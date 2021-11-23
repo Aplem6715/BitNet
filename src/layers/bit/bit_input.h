@@ -37,8 +37,8 @@ namespace bitnet
 
     private:
         // 出力バッファ（次の層が参照する
-        alignas(__m256i) BitBlock _outputBuffer[PADDED_OUT_BLOCKS] = {};
-        alignas(__m256i) BitBlock _outputBatchBuffer[BATCH_SIZE * PADDED_OUT_BLOCKS] = {};
+        alignas(32) BitBlock _outputBuffer[PADDED_OUT_BLOCKS] = {};
+        alignas(32) BitBlock _outputBatchBuffer[BATCH_SIZE * PADDED_OUT_BLOCKS] = {};
 
     public:
         void Init()
@@ -46,7 +46,10 @@ namespace bitnet
             memset(_outputBuffer, 0, sizeof(BitBlock) * PADDED_OUT_BLOCKS);
             memset(_outputBatchBuffer, 0, sizeof(BitBlock) * BATCH_SIZE * PADDED_OUT_BLOCKS);
         }
-        
+
+        void Save(std::ofstream &fs) {} // 終端
+        void Load(std::ifstream &fs) {} // 終端
+
         const BitBlock *Forward(const BitBlock *netInput)
         {
             // バッファに入力を詰める
