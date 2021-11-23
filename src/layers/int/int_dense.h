@@ -49,7 +49,7 @@ namespace bitnet
 		// 前の層に伝播する勾配
 		GradientType _gradsToPrev[BATCH_SIZE * COMPRESS_IN_DIM];
 		// 勾配法用の実数値重み
-		double _realWeight[COMPRESS_OUT_DIM][COMPRESS_IN_DIM] = {0};
+		float _realWeight[COMPRESS_OUT_DIM][COMPRESS_IN_DIM] = {0};
 		// バッチ学習版出力バッファ（学習時はこちらのバッファを使用する
 		int32_t _outputBatchBuffer[BATCH_SIZE * COMPRESS_OUT_DIM];
 		// 勾配計算用の入力バッファ（実態は前の層の出力バッファを参照するポインタ
@@ -87,7 +87,7 @@ namespace bitnet
 				_bias[i_out] = 0;
 				for (int i_in = 0; i_in < COMPRESS_IN_DIM; i_in++)
 				{
-					double rand = Random::GetReal01() * 2 - 1;
+					float rand = Random::GetReal01() * 2 - 1;
 					_realWeight[i_out][i_in] = rand;
 					_weight[i_out][i_in] = rand > 0 ? 1 : -1;
 				}
@@ -159,7 +159,7 @@ namespace bitnet
 				for (int i_in = 0; i_in < COMPRESS_IN_DIM; i_in++)
 				{
 					// Clipping
-					double tmp_w = std::max(-1.0, std::min(1.0, _realWeight[i_out][i_in]));
+					double tmp_w = std::max(-1.0, std::min(1.0, (double)_realWeight[i_out][i_in]));
 					_realWeight[i_out][i_in] = tmp_w;
 
 					_weight[i_out][i_in] = (tmp_w > 0) ? 1 : -1;

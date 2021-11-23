@@ -5,8 +5,8 @@
 #include "../src/train.h"
 #include <time.h>
 
-// TEST(BitNet, TrainSameCheck_Bit_Int)
-int main()
+TEST(BitNet, TrainSameCheck_Bit_Int)
+// int main()
 {
     using namespace bitnet;
     constexpr int iterNum = 10;
@@ -58,9 +58,9 @@ int main()
     std::cout << "int prediction time: " << intDuration / (double)CLOCKS_PER_SEC << std::endl;
     std::cout << "bit prediction time: " << bitDuration / (double)CLOCKS_PER_SEC << std::endl;
 
-    // for (int i = 0; i < testNum; i++)
-    // {
-    //     EXPECT_EQ(intDiffs[i], bitDiffs[i]);
-    // }
-    return 0;
+    for (int i = 0; i < testNum; i++)
+    {
+        EXPECT_EQ(intDiffs[i], bitDiffs[i]);
+    }
+    // return 0;
 }
