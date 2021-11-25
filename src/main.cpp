@@ -17,7 +17,7 @@ int main()
 		// Train<int_net::Network>(net, 100, false);
 		Train<BitNetwork>(net, 100, 16, true);
 	}
-	double diffs[25];
+	float diffs[25];
 	Test<BitNetwork>(net, 25, 16, true, false, diffs);
 
 	return 0;

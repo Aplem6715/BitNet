@@ -15,6 +15,7 @@
 
 #include "../../net_common.h"
 #include "../../util/bit_helper.h"
+#include <fstream>
 
 namespace bitnet
 {
